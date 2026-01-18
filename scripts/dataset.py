@@ -15,7 +15,9 @@ class DummySkyDataset(Dataset):
 
     def __getitem__(self, index: int) -> tuple[torch.Tensor, torch.Tensor]:
         # Dataset 負責定義如何依索引取出單筆資料（影像與標註）。
-        image = torch.rand(3, 256, 256)
+        # 這裡用 index 當隨機種子，讓每個索引對應固定內容。
+        generator = torch.Generator().manual_seed(index)
+        image = torch.rand(3, 256, 256, generator=generator)
         # DataLoader 會批次與迭代 Dataset 的資料，供訓練流程使用。
-        mask = torch.randint(0, 2, (256, 256), dtype=torch.int64)
+        mask = torch.randint(0, 2, (256, 256), dtype=torch.int64, generator=generator)
         return image, mask
