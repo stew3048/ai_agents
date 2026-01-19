@@ -1,0 +1,10 @@
+torch>=2.0.0
+torchvision>=0.15.0
+segmentation-models-pytorch>=0.3.3
+pillow>=9.0.0
+numpy>=1.21.0
+matplotlib>=3.5.0
+tqdm>=4.64.0
+opencv-python>=4.6.0
+tensorboard>=2.10.0  # 用於訓練日誌視覺化
+torchsummary>=1.5.1  # 可選：用於顯示模型結構摘要
