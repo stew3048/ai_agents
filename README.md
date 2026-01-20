@@ -11,9 +11,12 @@
 ```
 .
 ├── data/                       # 資料集存放位置
-│   ├── toy/                    # Toy dataset（測試用）
+│   ├── toy/                    # Toy dataset V1（256x256，測試用）
 │   │   ├── images/             # 50 張 .jpg 圖片
 │   │   └── masks/              # 50 張 .png mask
+│   ├── toy_v2/                 # Toy dataset V2（512x384，驗證 resize）
+│   │   ├── images/             # 20 張 .jpg 圖片
+│   │   └── masks/              # 20 張 .png mask
 │   ├── images/                 # 圖片資料夾（或 train/images/, val/images/ 等）
 │   └── masks/                  # Mask 資料夾（或 train/masks/, val/masks/ 等）
 ├── models/                     # 模型定義與權重
@@ -24,12 +27,15 @@
 │   ├── dataset.py              # 資料集載入器 (DataLoader)
 │   └── metrics.py              # 評估指標 (IoU, Dice, Accuracy)
 ├── scripts/                    # 驗證腳本
-│   └── verify_toy_loader_visual.py  # 視覺化驗收
+│   ├── verify_toy_loader_visual.py     # 視覺化驗收（V1）
+│   └── verify_toy_loader_visual_v2.py  # Resize 驗證（V2）
 ├── outputs/                    # 輸出結果
-│   └── toy_loader_vis/         # DataLoader 視覺化驗收結果
+│   ├── toy_loader_vis/         # DataLoader 視覺化驗收結果（V1）
+│   └── toy_loader_vis_v2/      # Resize 驗證結果（V2）
 ├── main.py                     # 主程序入口
 ├── train.py                    # 訓練腳本
-├── generate_toy_dataset.py     # 產生 Toy Dataset
+├── generate_toy_dataset.py     # 產生 Toy Dataset V1 (256x256)
+├── generate_toy_dataset_v2.py  # 產生 Toy Dataset V2 (512x384)
 ├── check_toy_dataset.py        # 檔案配對檢查
 ├── sanity_check_dataloader.py  # DataLoader 輸出驗證
 ├── test_dataset.py             # 測試資料集載入器
@@ -195,6 +201,32 @@ python scripts/verify_toy_loader_visual.py
 - `XXX_2_mask.png` - GT mask（白=天空）
 - `XXX_3_overlay.png` - Mask 疊在圖片上
 - `XXX_4_resized_overlay.png` - Resize 後的 overlay
+
+#### 4. Toy Dataset V2 + Resize 驗證 ✓
+產生較大尺寸 (512x384) 的資料集，驗證 resize 行為是否正確。
+
+**產生 V2 資料集：**
+```bash
+python generate_toy_dataset_v2.py --num_images 20
+```
+
+**執行 Resize 視覺化驗證：**
+```bash
+python scripts/verify_toy_loader_visual_v2.py
+```
+
+輸出到 `outputs/toy_loader_vis_v2/`（每個 sample 5 張圖）：
+| 檔案 | 內容 | 尺寸 |
+|------|------|------|
+| `XXX_1_original.png` | 原始 image | 512x384 |
+| `XXX_2_mask.png` | 原始 mask | 512x384 |
+| `XXX_3_overlay_original.png` | 原始尺寸 overlay | 512x384 |
+| `XXX_4_overlay_resized.png` | 手動 resize 後 overlay | 256x256 |
+| `XXX_5_from_dataloader.png` | DataLoader 輸出 overlay | 256x256 |
+
+**驗證重點：**
+- 比較 `_3` vs `_4`：resize 後邊界是否銳利、對齊正確
+- 比較 `_4` vs `_5`：手動 resize 與 DataLoader 結果是否一致
 
 ### ⏳ 待完成
 - [ ] 使用真實資料集（SkyFinder）訓練
