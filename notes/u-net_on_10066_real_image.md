@@ -1,6 +1,6 @@
 # U-Net on SkyFinder Camera 10066 Real Image - 學習心得
 
-> 日期：2026-01-19
+> 日期：2026-01-21
 
 ## 1. 實驗目標
 
