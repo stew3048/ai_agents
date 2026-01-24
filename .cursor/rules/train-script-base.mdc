@@ -34,15 +34,22 @@ alwaysApply: false
    - 儲存 `latest.pth`（含 `epoch`, `model_state_dict`, `optimizer_state_dict`, `val_iou`）
    - 若 `val_iou > best_val_iou`，另存 `best.pth`
 
+5. **訓練結束後：Val Overlay 視覺化**  
+   - 用 **val set** 做預測，依每張圖的 IoU 排序
+   - 畫 overlay（原圖 + GT mask + 預測 mask）：**最好 5 張、最差 5 張**
+   - 存到 `val_overlays/`（如 `best_1_iou_0.xx.png`、`worst_1_iou_0.xx.png`）
+   - 使用 **best.pth** 載入模型後再產生
+
 ## 可依需求調整的部分
 
 - 資料來源（splits JSON、dataset、dataloader）
 - 模型、loss、optimizer、scheduler
 - `epochs`、`batch_size`、`image_size`、`learning_rate`
-- 是否做 AMP、overlay、其它評估
+- 是否做 AMP、overlay 張數/樣式、其它評估
 
 ## 參考程式碼位置（train_multi_camera.py）
 
 - 續訓 / 新 run 選擇：約 300–335 行（`use_existing`、`run_dir`、`start_epoch`、`best_val_iou`、載入 `latest.pth`）
 - 每 epoch 寫入 CSV：約 410–421 行
 - `save_checkpoint`（`latest.pth` / `best.pth`）：約 276–294 行
+- Val overlay：`create_overlay`、`evaluate_with_predictions`、`save_val_overlays`（約 191–273 行）；訓練結束後呼叫（約 420–432 行）
