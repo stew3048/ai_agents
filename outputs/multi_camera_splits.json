@@ -1,0 +1,2162 @@
+{
+  "metadata": {
+    "strategy": "cross_camera_split",
+    "created_at": "2026-01-23 22:43:01",
+    "train_cameras": [
+      "10066",
+      "9291",
+      "9112"
+    ],
+    "val_camera": "9483",
+    "test_camera": "10870",
+    "train_ratio": 0.9,
+    "sanity_ratio": 0.09999999999999998,
+    "seed": 42,
+    "camera_stats": {
+      "10066": 50,
+      "9291": 82,
+      "9112": 100,
+      "9483": 100,
+      "10870": 94
+    },
+    "note": "Cross-scene evaluation: train on some cameras, test on unseen camera (10870)"
+  },
+  "train": [
+    {
+      "image": "001.jpg",
+      "mask": "001.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "002.jpg",
+      "mask": "002.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "003.jpg",
+      "mask": "003.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "004.jpg",
+      "mask": "004.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "005.jpg",
+      "mask": "005.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "006.jpg",
+      "mask": "006.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "007.jpg",
+      "mask": "007.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "008.jpg",
+      "mask": "008.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "009.jpg",
+      "mask": "009.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "010.jpg",
+      "mask": "010.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "011.jpg",
+      "mask": "011.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "012.jpg",
+      "mask": "012.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "013.jpg",
+      "mask": "013.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "014.jpg",
+      "mask": "014.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "015.jpg",
+      "mask": "015.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "016.jpg",
+      "mask": "016.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "017.jpg",
+      "mask": "017.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "018.jpg",
+      "mask": "018.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "019.jpg",
+      "mask": "019.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "020.jpg",
+      "mask": "020.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "021.jpg",
+      "mask": "021.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "022.jpg",
+      "mask": "022.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "023.jpg",
+      "mask": "023.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "024.jpg",
+      "mask": "024.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "025.jpg",
+      "mask": "025.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "026.jpg",
+      "mask": "026.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "027.jpg",
+      "mask": "027.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "028.jpg",
+      "mask": "028.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "029.jpg",
+      "mask": "029.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "030.jpg",
+      "mask": "030.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "031.jpg",
+      "mask": "031.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "032.jpg",
+      "mask": "032.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "033.jpg",
+      "mask": "033.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "034.jpg",
+      "mask": "034.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "035.jpg",
+      "mask": "035.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "036.jpg",
+      "mask": "036.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "037.jpg",
+      "mask": "037.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "038.jpg",
+      "mask": "038.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "039.jpg",
+      "mask": "039.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "040.jpg",
+      "mask": "040.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "041.jpg",
+      "mask": "041.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "042.jpg",
+      "mask": "042.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "043.jpg",
+      "mask": "043.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "044.jpg",
+      "mask": "044.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "045.jpg",
+      "mask": "045.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "001.jpg",
+      "mask": "001.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "002.jpg",
+      "mask": "002.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "003.jpg",
+      "mask": "003.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "004.jpg",
+      "mask": "004.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "005.jpg",
+      "mask": "005.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "006.jpg",
+      "mask": "006.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "007.jpg",
+      "mask": "007.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "008.jpg",
+      "mask": "008.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "010.jpg",
+      "mask": "010.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "011.jpg",
+      "mask": "011.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "012.jpg",
+      "mask": "012.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "013.jpg",
+      "mask": "013.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "014.jpg",
+      "mask": "014.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "017.jpg",
+      "mask": "017.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "018.jpg",
+      "mask": "018.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "019.jpg",
+      "mask": "019.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "020.jpg",
+      "mask": "020.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "021.jpg",
+      "mask": "021.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "023.jpg",
+      "mask": "023.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "024.jpg",
+      "mask": "024.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "025.jpg",
+      "mask": "025.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "026.jpg",
+      "mask": "026.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "027.jpg",
+      "mask": "027.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "028.jpg",
+      "mask": "028.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "029.jpg",
+      "mask": "029.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "030.jpg",
+      "mask": "030.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "033.jpg",
+      "mask": "033.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "034.jpg",
+      "mask": "034.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "036.jpg",
+      "mask": "036.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "037.jpg",
+      "mask": "037.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "038.jpg",
+      "mask": "038.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "039.jpg",
+      "mask": "039.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "040.jpg",
+      "mask": "040.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "041.jpg",
+      "mask": "041.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "042.jpg",
+      "mask": "042.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "043.jpg",
+      "mask": "043.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "044.jpg",
+      "mask": "044.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "045.jpg",
+      "mask": "045.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "046.jpg",
+      "mask": "046.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "047.jpg",
+      "mask": "047.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "048.jpg",
+      "mask": "048.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "049.jpg",
+      "mask": "049.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "051.jpg",
+      "mask": "051.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "052.jpg",
+      "mask": "052.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "053.jpg",
+      "mask": "053.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "054.jpg",
+      "mask": "054.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "057.jpg",
+      "mask": "057.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "058.jpg",
+      "mask": "058.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "059.jpg",
+      "mask": "059.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "060.jpg",
+      "mask": "060.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "061.jpg",
+      "mask": "061.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "062.jpg",
+      "mask": "062.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "063.jpg",
+      "mask": "063.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "064.jpg",
+      "mask": "064.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "066.jpg",
+      "mask": "066.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "067.jpg",
+      "mask": "067.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "068.jpg",
+      "mask": "068.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "070.jpg",
+      "mask": "070.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "071.jpg",
+      "mask": "071.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "074.jpg",
+      "mask": "074.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "075.jpg",
+      "mask": "075.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "077.jpg",
+      "mask": "077.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "078.jpg",
+      "mask": "078.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "079.jpg",
+      "mask": "079.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "080.jpg",
+      "mask": "080.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "082.jpg",
+      "mask": "082.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "083.jpg",
+      "mask": "083.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "084.jpg",
+      "mask": "084.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "085.jpg",
+      "mask": "085.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "086.jpg",
+      "mask": "086.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "087.jpg",
+      "mask": "087.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "088.jpg",
+      "mask": "088.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "090.jpg",
+      "mask": "090.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "001.jpg",
+      "mask": "001.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "002.jpg",
+      "mask": "002.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "003.jpg",
+      "mask": "003.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "004.jpg",
+      "mask": "004.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "005.jpg",
+      "mask": "005.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "006.jpg",
+      "mask": "006.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "007.jpg",
+      "mask": "007.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "008.jpg",
+      "mask": "008.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "009.jpg",
+      "mask": "009.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "010.jpg",
+      "mask": "010.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "011.jpg",
+      "mask": "011.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "012.jpg",
+      "mask": "012.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "013.jpg",
+      "mask": "013.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "014.jpg",
+      "mask": "014.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "015.jpg",
+      "mask": "015.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "016.jpg",
+      "mask": "016.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "017.jpg",
+      "mask": "017.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "018.jpg",
+      "mask": "018.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "019.jpg",
+      "mask": "019.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "020.jpg",
+      "mask": "020.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "021.jpg",
+      "mask": "021.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "022.jpg",
+      "mask": "022.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "023.jpg",
+      "mask": "023.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "024.jpg",
+      "mask": "024.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "025.jpg",
+      "mask": "025.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "026.jpg",
+      "mask": "026.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "027.jpg",
+      "mask": "027.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "028.jpg",
+      "mask": "028.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "029.jpg",
+      "mask": "029.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "030.jpg",
+      "mask": "030.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "031.jpg",
+      "mask": "031.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "032.jpg",
+      "mask": "032.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "033.jpg",
+      "mask": "033.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "034.jpg",
+      "mask": "034.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "035.jpg",
+      "mask": "035.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "036.jpg",
+      "mask": "036.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "037.jpg",
+      "mask": "037.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "038.jpg",
+      "mask": "038.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "039.jpg",
+      "mask": "039.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "040.jpg",
+      "mask": "040.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "041.jpg",
+      "mask": "041.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "042.jpg",
+      "mask": "042.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "043.jpg",
+      "mask": "043.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "044.jpg",
+      "mask": "044.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "045.jpg",
+      "mask": "045.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "046.jpg",
+      "mask": "046.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "047.jpg",
+      "mask": "047.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "048.jpg",
+      "mask": "048.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "049.jpg",
+      "mask": "049.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "050.jpg",
+      "mask": "050.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "051.jpg",
+      "mask": "051.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "052.jpg",
+      "mask": "052.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "053.jpg",
+      "mask": "053.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "054.jpg",
+      "mask": "054.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "055.jpg",
+      "mask": "055.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "056.jpg",
+      "mask": "056.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "057.jpg",
+      "mask": "057.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "058.jpg",
+      "mask": "058.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "059.jpg",
+      "mask": "059.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "060.jpg",
+      "mask": "060.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "061.jpg",
+      "mask": "061.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "062.jpg",
+      "mask": "062.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "063.jpg",
+      "mask": "063.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "064.jpg",
+      "mask": "064.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "065.jpg",
+      "mask": "065.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "066.jpg",
+      "mask": "066.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "067.jpg",
+      "mask": "067.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "068.jpg",
+      "mask": "068.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "069.jpg",
+      "mask": "069.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "070.jpg",
+      "mask": "070.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "071.jpg",
+      "mask": "071.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "072.jpg",
+      "mask": "072.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "073.jpg",
+      "mask": "073.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "074.jpg",
+      "mask": "074.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "075.jpg",
+      "mask": "075.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "076.jpg",
+      "mask": "076.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "077.jpg",
+      "mask": "077.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "078.jpg",
+      "mask": "078.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "079.jpg",
+      "mask": "079.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "080.jpg",
+      "mask": "080.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "081.jpg",
+      "mask": "081.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "082.jpg",
+      "mask": "082.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "083.jpg",
+      "mask": "083.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "084.jpg",
+      "mask": "084.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "085.jpg",
+      "mask": "085.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "086.jpg",
+      "mask": "086.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "087.jpg",
+      "mask": "087.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "088.jpg",
+      "mask": "088.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "089.jpg",
+      "mask": "089.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "090.jpg",
+      "mask": "090.png",
+      "camera_id": "9112"
+    }
+  ],
+  "sanity": [
+    {
+      "image": "046.jpg",
+      "mask": "046.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "047.jpg",
+      "mask": "047.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "048.jpg",
+      "mask": "048.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "049.jpg",
+      "mask": "049.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "050.jpg",
+      "mask": "050.png",
+      "camera_id": "10066"
+    },
+    {
+      "image": "091.jpg",
+      "mask": "091.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "092.jpg",
+      "mask": "092.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "093.jpg",
+      "mask": "093.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "094.jpg",
+      "mask": "094.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "095.jpg",
+      "mask": "095.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "096.jpg",
+      "mask": "096.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "097.jpg",
+      "mask": "097.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "099.jpg",
+      "mask": "099.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "100.jpg",
+      "mask": "100.png",
+      "camera_id": "9291"
+    },
+    {
+      "image": "091.jpg",
+      "mask": "091.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "092.jpg",
+      "mask": "092.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "093.jpg",
+      "mask": "093.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "094.jpg",
+      "mask": "094.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "095.jpg",
+      "mask": "095.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "096.jpg",
+      "mask": "096.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "097.jpg",
+      "mask": "097.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "098.jpg",
+      "mask": "098.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "099.jpg",
+      "mask": "099.png",
+      "camera_id": "9112"
+    },
+    {
+      "image": "100.jpg",
+      "mask": "100.png",
+      "camera_id": "9112"
+    }
+  ],
+  "val": [
+    {
+      "image": "001.jpg",
+      "mask": "001.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "002.jpg",
+      "mask": "002.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "003.jpg",
+      "mask": "003.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "004.jpg",
+      "mask": "004.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "005.jpg",
+      "mask": "005.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "006.jpg",
+      "mask": "006.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "007.jpg",
+      "mask": "007.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "008.jpg",
+      "mask": "008.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "009.jpg",
+      "mask": "009.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "010.jpg",
+      "mask": "010.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "011.jpg",
+      "mask": "011.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "012.jpg",
+      "mask": "012.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "013.jpg",
+      "mask": "013.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "014.jpg",
+      "mask": "014.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "015.jpg",
+      "mask": "015.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "016.jpg",
+      "mask": "016.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "017.jpg",
+      "mask": "017.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "018.jpg",
+      "mask": "018.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "019.jpg",
+      "mask": "019.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "020.jpg",
+      "mask": "020.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "021.jpg",
+      "mask": "021.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "022.jpg",
+      "mask": "022.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "023.jpg",
+      "mask": "023.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "024.jpg",
+      "mask": "024.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "025.jpg",
+      "mask": "025.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "026.jpg",
+      "mask": "026.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "027.jpg",
+      "mask": "027.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "028.jpg",
+      "mask": "028.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "029.jpg",
+      "mask": "029.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "030.jpg",
+      "mask": "030.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "031.jpg",
+      "mask": "031.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "032.jpg",
+      "mask": "032.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "033.jpg",
+      "mask": "033.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "034.jpg",
+      "mask": "034.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "035.jpg",
+      "mask": "035.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "036.jpg",
+      "mask": "036.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "037.jpg",
+      "mask": "037.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "038.jpg",
+      "mask": "038.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "039.jpg",
+      "mask": "039.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "040.jpg",
+      "mask": "040.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "041.jpg",
+      "mask": "041.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "042.jpg",
+      "mask": "042.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "043.jpg",
+      "mask": "043.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "044.jpg",
+      "mask": "044.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "045.jpg",
+      "mask": "045.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "046.jpg",
+      "mask": "046.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "047.jpg",
+      "mask": "047.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "048.jpg",
+      "mask": "048.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "049.jpg",
+      "mask": "049.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "050.jpg",
+      "mask": "050.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "051.jpg",
+      "mask": "051.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "052.jpg",
+      "mask": "052.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "053.jpg",
+      "mask": "053.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "054.jpg",
+      "mask": "054.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "055.jpg",
+      "mask": "055.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "056.jpg",
+      "mask": "056.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "057.jpg",
+      "mask": "057.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "058.jpg",
+      "mask": "058.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "059.jpg",
+      "mask": "059.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "060.jpg",
+      "mask": "060.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "061.jpg",
+      "mask": "061.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "062.jpg",
+      "mask": "062.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "063.jpg",
+      "mask": "063.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "064.jpg",
+      "mask": "064.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "065.jpg",
+      "mask": "065.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "066.jpg",
+      "mask": "066.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "067.jpg",
+      "mask": "067.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "068.jpg",
+      "mask": "068.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "069.jpg",
+      "mask": "069.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "070.jpg",
+      "mask": "070.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "071.jpg",
+      "mask": "071.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "072.jpg",
+      "mask": "072.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "073.jpg",
+      "mask": "073.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "074.jpg",
+      "mask": "074.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "075.jpg",
+      "mask": "075.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "076.jpg",
+      "mask": "076.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "077.jpg",
+      "mask": "077.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "078.jpg",
+      "mask": "078.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "079.jpg",
+      "mask": "079.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "080.jpg",
+      "mask": "080.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "081.jpg",
+      "mask": "081.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "082.jpg",
+      "mask": "082.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "083.jpg",
+      "mask": "083.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "084.jpg",
+      "mask": "084.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "085.jpg",
+      "mask": "085.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "086.jpg",
+      "mask": "086.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "087.jpg",
+      "mask": "087.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "088.jpg",
+      "mask": "088.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "089.jpg",
+      "mask": "089.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "090.jpg",
+      "mask": "090.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "091.jpg",
+      "mask": "091.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "092.jpg",
+      "mask": "092.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "093.jpg",
+      "mask": "093.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "094.jpg",
+      "mask": "094.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "095.jpg",
+      "mask": "095.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "096.jpg",
+      "mask": "096.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "097.jpg",
+      "mask": "097.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "098.jpg",
+      "mask": "098.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "099.jpg",
+      "mask": "099.png",
+      "camera_id": "9483"
+    },
+    {
+      "image": "100.jpg",
+      "mask": "100.png",
+      "camera_id": "9483"
+    }
+  ],
+  "test": [
+    {
+      "image": "001.jpg",
+      "mask": "001.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "002.jpg",
+      "mask": "002.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "003.jpg",
+      "mask": "003.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "004.jpg",
+      "mask": "004.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "005.jpg",
+      "mask": "005.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "006.jpg",
+      "mask": "006.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "007.jpg",
+      "mask": "007.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "008.jpg",
+      "mask": "008.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "009.jpg",
+      "mask": "009.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "010.jpg",
+      "mask": "010.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "012.jpg",
+      "mask": "012.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "013.jpg",
+      "mask": "013.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "014.jpg",
+      "mask": "014.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "015.jpg",
+      "mask": "015.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "016.jpg",
+      "mask": "016.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "017.jpg",
+      "mask": "017.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "018.jpg",
+      "mask": "018.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "019.jpg",
+      "mask": "019.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "020.jpg",
+      "mask": "020.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "021.jpg",
+      "mask": "021.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "022.jpg",
+      "mask": "022.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "023.jpg",
+      "mask": "023.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "024.jpg",
+      "mask": "024.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "025.jpg",
+      "mask": "025.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "026.jpg",
+      "mask": "026.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "027.jpg",
+      "mask": "027.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "028.jpg",
+      "mask": "028.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "029.jpg",
+      "mask": "029.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "030.jpg",
+      "mask": "030.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "031.jpg",
+      "mask": "031.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "032.jpg",
+      "mask": "032.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "033.jpg",
+      "mask": "033.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "034.jpg",
+      "mask": "034.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "036.jpg",
+      "mask": "036.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "037.jpg",
+      "mask": "037.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "038.jpg",
+      "mask": "038.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "039.jpg",
+      "mask": "039.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "040.jpg",
+      "mask": "040.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "041.jpg",
+      "mask": "041.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "042.jpg",
+      "mask": "042.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "043.jpg",
+      "mask": "043.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "044.jpg",
+      "mask": "044.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "045.jpg",
+      "mask": "045.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "046.jpg",
+      "mask": "046.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "048.jpg",
+      "mask": "048.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "049.jpg",
+      "mask": "049.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "050.jpg",
+      "mask": "050.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "051.jpg",
+      "mask": "051.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "053.jpg",
+      "mask": "053.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "054.jpg",
+      "mask": "054.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "055.jpg",
+      "mask": "055.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "056.jpg",
+      "mask": "056.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "057.jpg",
+      "mask": "057.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "058.jpg",
+      "mask": "058.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "059.jpg",
+      "mask": "059.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "060.jpg",
+      "mask": "060.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "061.jpg",
+      "mask": "061.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "062.jpg",
+      "mask": "062.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "063.jpg",
+      "mask": "063.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "064.jpg",
+      "mask": "064.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "065.jpg",
+      "mask": "065.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "066.jpg",
+      "mask": "066.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "067.jpg",
+      "mask": "067.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "069.jpg",
+      "mask": "069.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "070.jpg",
+      "mask": "070.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "071.jpg",
+      "mask": "071.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "072.jpg",
+      "mask": "072.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "073.jpg",
+      "mask": "073.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "074.jpg",
+      "mask": "074.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "075.jpg",
+      "mask": "075.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "076.jpg",
+      "mask": "076.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "077.jpg",
+      "mask": "077.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "078.jpg",
+      "mask": "078.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "079.jpg",
+      "mask": "079.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "080.jpg",
+      "mask": "080.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "081.jpg",
+      "mask": "081.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "082.jpg",
+      "mask": "082.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "083.jpg",
+      "mask": "083.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "084.jpg",
+      "mask": "084.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "085.jpg",
+      "mask": "085.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "086.jpg",
+      "mask": "086.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "087.jpg",
+      "mask": "087.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "088.jpg",
+      "mask": "088.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "089.jpg",
+      "mask": "089.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "091.jpg",
+      "mask": "091.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "092.jpg",
+      "mask": "092.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "093.jpg",
+      "mask": "093.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "094.jpg",
+      "mask": "094.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "095.jpg",
+      "mask": "095.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "096.jpg",
+      "mask": "096.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "097.jpg",
+      "mask": "097.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "098.jpg",
+      "mask": "098.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "099.jpg",
+      "mask": "099.png",
+      "camera_id": "10870"
+    },
+    {
+      "image": "100.jpg",
+      "mask": "100.png",
+      "camera_id": "10870"
+    }
+  ]
+}

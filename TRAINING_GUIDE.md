@@ -1,6 +1,23 @@
 # 訓練指南
 
-## 快速開始
+## 訓練腳本基底：train_multi_camera.py（推薦）
+
+**`train_multi_camera.py`** 為本專案的訓練腳本基底，特點是**中斷後可續訓**：重新執行會自動偵測未完成 run、載入 `latest.pth`，從下一 epoch 繼續，不需手動指定 checkpoint。
+
+- 使用 `outputs/multi_camera_splits.json` 的 train / sanity / val
+- 每 epoch 存 `checkpoints/latest.pth`、依 val IoU 存 `best.pth`
+- 訓練日誌 `training_log.csv` 用於判斷進度與續訓起點
+
+```bash
+python train_multi_camera.py   # 中斷後再跑同一指令即可續訓
+```
+
+詳細續訓邏輯與實作位置見：`notes/train_multi_camera_resume.md`。  
+撰寫或修改訓練腳本時，請以 `train_multi_camera.py` 為基底並保留續訓設計（見 `.cursor/rules/train-script-base.mdc`）。
+
+---
+
+## 快速開始（train.py，依資料夾路徑）
 
 ### 1. 準備資料集
 

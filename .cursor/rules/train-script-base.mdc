@@ -1,0 +1,48 @@
+---
+description: 訓練腳本以 train_multi_camera.py 為基底，保留「中斷可續訓」邏輯
+globs: train*.py,**/train*.py
+alwaysApply: false
+---
+
+# 訓練腳本基底：train_multi_camera.py
+
+本專案以 **`train_multi_camera.py`** 為訓練腳本基底。撰寫或修改訓練腳本時，請以此為範本，並**務必保留「中斷可續訓」**的設計。
+
+## 為何以此為基底
+
+- 中斷後重新執行會**自動從上次進度繼續**，不需手動指定 checkpoint
+- 每 epoch 寫入 `latest.pth`、依 val IoU 寫 `best.pth`
+- 訓練日誌 `training_log.csv` 用來判斷已完成幾個 epoch，以決定 `start_epoch`
+
+## 必須保留的「續訓」邏輯
+
+1. **尋找未完成回合的輸出目錄**  
+   - 掃描 `outputs/train_multi_camera_*`（或你的 `outputs/<run_prefix>_*`）
+   - 取**最新修改時間**的目錄
+
+2. **判斷是否續訓**  
+   - 若 `training_log.csv` 存在：`completed_epochs = (行數 - 1)`（扣掉 header）
+   - 若 `completed_epochs < epochs` → 使用該目錄續訓；否則開新目錄
+
+3. **續訓時的初始化**  
+   - `start_epoch = completed_epochs + 1`
+   - `best_val_iou` 從既有 CSV 的 `val_iou` 取 max
+   - 若有 `checkpoints/latest.pth`：載入 `model_state_dict`、`optimizer_state_dict`，再從 `start_epoch` 開始
+
+4. **每 epoch 結束**  
+   - 將該 epoch 的 metrics 追加寫入 `training_log.csv`（不要覆寫）
+   - 儲存 `latest.pth`（含 `epoch`, `model_state_dict`, `optimizer_state_dict`, `val_iou`）
+   - 若 `val_iou > best_val_iou`，另存 `best.pth`
+
+## 可依需求調整的部分
+
+- 資料來源（splits JSON、dataset、dataloader）
+- 模型、loss、optimizer、scheduler
+- `epochs`、`batch_size`、`image_size`、`learning_rate`
+- 是否做 AMP、overlay、其它評估
+
+## 參考程式碼位置（train_multi_camera.py）
+
+- 續訓 / 新 run 選擇：約 300–335 行（`use_existing`、`run_dir`、`start_epoch`、`best_val_iou`、載入 `latest.pth`）
+- 每 epoch 寫入 CSV：約 410–421 行
+- `save_checkpoint`（`latest.pth` / `best.pth`）：約 276–294 行
