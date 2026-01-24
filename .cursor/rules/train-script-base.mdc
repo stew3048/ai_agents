@@ -40,6 +40,13 @@ alwaysApply: false
    - 存到 `val_overlays/`（如 `best_1_iou_0.xx.png`、`worst_1_iou_0.xx.png`）
    - 使用 **best.pth** 載入模型後再產生
 
+6. **訓練完成後：Test 評估**（見 `notes/eval_test_procedure.md`）  
+   - 執行 `eval_multi_camera_test.py`，用 **best.pth** 跑 **Test set**
+   - 輸出：Test IoU、Dice、Pixel Acc、**FP Rate、FN Rate**、Loss
+   - 輸出 overlay：**最好 5 張、最差 5 張** 至 `{run_dir}/test_overlays/`
+   - 最差 5 張一併輸出每張的 FP Rate、FN Rate
+   - 日誌需記錄：前提（Train/Val/Test 張數、各 camera 日夜比）、Val/Test 結果、失敗情境（白天/傍晚/夜晚/黃昏、灰雲、domain shift、極端失敗）
+
 ## 可依需求調整的部分
 
 - 資料來源（splits JSON、dataset、dataloader）
@@ -53,3 +60,4 @@ alwaysApply: false
 - 每 epoch 寫入 CSV：約 410–421 行
 - `save_checkpoint`（`latest.pth` / `best.pth`）：約 276–294 行
 - Val overlay：`create_overlay`、`evaluate_with_predictions`、`save_val_overlays`（約 191–273 行）；訓練結束後呼叫（約 420–432 行）
+- Test 評估：`eval_multi_camera_test.py`；流程與記錄要點見 `notes/eval_test_procedure.md`

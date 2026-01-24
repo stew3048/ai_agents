@@ -66,8 +66,18 @@ python train_multi_camera.py
 - 預設 `epochs=6`、`batch_size=2`、`image_size=(160,160)`、`lr=1e-4`
 - 有 GPU 時自動 AMP；不足則改 CPU
 
+## Test 評估（訓練完成後）
+
+訓練完成後，用 **best.pth** 在 **Test set** 上跑評估、產出 overlay 與 FP/FN，以及寫入泛化測試筆記。  
+**完整流程與要記錄的項目**見：`notes/eval_test_procedure.md`。
+
+- **腳本**：`eval_multi_camera_test.py`
+- **指令**：`python eval_multi_camera_test.py`
+- **產出**：Test IoU/Dice/PixelAcc/**FP Rate/FN Rate**、`test_overlays/`（最好/最差各 5 張）、最差 5 張的 FP/FN
+
 ## 相關檔案
 
 - 主程式：`train_multi_camera.py`
+- Test 評估：`eval_multi_camera_test.py`；流程與記錄要點：`notes/eval_test_procedure.md`
 - 規則：`.cursor/rules/train-script-base.mdc`
 - 訓練總覽：`TRAINING_GUIDE.md`
