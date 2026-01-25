@@ -1,0 +1,19 @@
+---
+description: 實驗／Build 順序：camera inventory → splits → train → eval；跑完整 pipeline 或建置前請依此順序。
+globs: train_multi_camera.py,eval_multi_camera_test.py,scripts/camera_inventory.py,scripts/create_multi_camera_splits.py,outputs/multi_camera_splits.json
+alwaysApply: false
+---
+
+# Build / 實驗流程順序
+
+跑完整實驗或建置時，請依以下順序執行；亂序可能產生過期或缺失的前提資料。
+
+| 步驟 | 指令／腳本 | 產出 | 備註 |
+|------|------------|------|------|
+| 1 | `python scripts/camera_inventory.py` | `outputs/camera_inventory.csv` | **務必最先**；日誌前提需由此整理各 camera 張數、night_ratio、mean_brightness |
+| 2 | 建立或更新 splits | `outputs/multi_camera_splits.json` | 如 `scripts/create_multi_camera_splits.py` 或既有流程 |
+| 3 | `python train_multi_camera.py` | `outputs/train_multi_camera_*/`（checkpoints、training_log、val_overlays、val_best_worst_metrics.json） | 中斷可續訓 |
+| 4 | `python eval_multi_camera_test.py` | `{run}/test_overlays/`、`test_best_worst_metrics.json` | 用 best.pth 跑 Test |
+
+- 若跳過 1，日誌「前提」無法寫各 camera 日夜比，後續難以回推 domain shift、漏檢等。
+- Overlay 與 metrics 使用 **split 編碼**（val_0042、test_0073）對照原圖；詳見 `notes/eval_test_procedure.md`、`notes/DAILY_LOG_PROCEDURE.md`。

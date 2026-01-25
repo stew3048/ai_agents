@@ -12,6 +12,7 @@
 import os
 import sys
 import argparse
+import json
 import torch
 import torch.nn as nn
 from tqdm import tqdm
@@ -25,7 +26,7 @@ sys.stderr.reconfigure(encoding='utf-8')
 from models import create_unet_model
 from utils.dataset import get_dataloader, load_splits_from_json
 from utils.metrics import calculate_metrics
-from train_multi_camera import create_overlay, evaluate_with_predictions
+from train_multi_camera import create_overlay, evaluate_with_predictions, _safe_overlay_suffix
 
 
 def find_latest_best_checkpoint():
@@ -131,7 +132,7 @@ def main():
 
     # === 每張圖預測與 IoU，用於 best/worst 5；並補上每張的 fp_rate, fn_rate ===
     print("計算每張圖 IoU 並生成 overlay...")
-    all_results = evaluate_with_predictions(model, test_loader, device, use_amp)
+    all_results = evaluate_with_predictions(model, test_loader, device, use_amp, split_label='test')
     _smooth = 1e-6
     for r in all_results:
         p = (r['pred_mask'] > 0.5).float()
@@ -147,17 +148,39 @@ def main():
     best_5 = all_results[:5]
     worst_5 = all_results[-5:]
 
-    # 儲存 best 5
+    # 儲存 best 5（檔名使用 split 編碼 test_0073，對照 test 清單第 73 筆即為原圖）
     print("  儲存最好的 5 張 overlay...")
     for i, r in enumerate(best_5):
         overlay = create_overlay(r['image'], r['gt_mask'], r['pred_mask'])
-        overlay.save(os.path.join(overlay_dir, f'best_{i+1}_iou_{r["iou"]:.4f}.png'))
+        suf = _safe_overlay_suffix(r.get('source_id', ''))
+        name = f'best_{i+1}_iou_{r["iou"]:.4f}_{suf}.png' if suf else f'best_{i+1}_iou_{r["iou"]:.4f}.png'
+        overlay.save(os.path.join(overlay_dir, name))
 
     # 儲存 worst 5
     print("  儲存最差的 5 張 overlay...")
     for i, r in enumerate(worst_5):
         overlay = create_overlay(r['image'], r['gt_mask'], r['pred_mask'])
-        overlay.save(os.path.join(overlay_dir, f'worst_{i+1}_iou_{r["iou"]:.4f}.png'))
+        suf = _safe_overlay_suffix(r.get('source_id', ''))
+        name = f'worst_{i+1}_iou_{r["iou"]:.4f}_{suf}.png' if suf else f'worst_{i+1}_iou_{r["iou"]:.4f}.png'
+        overlay.save(os.path.join(overlay_dir, name))
+
+    def _to_records(bunch):
+        return [
+            {
+                'rank': i + 1,
+                'source_id': r.get('source_id'),
+                'iou': round(float(r['iou']), 6),
+                'fp_rate': round(float(r.get('fp_rate', 0)), 6),
+                'fn_rate': round(float(r.get('fn_rate', 0)), 6),
+                'orig_path': r.get('orig_path'),
+            }
+            for i, r in enumerate(bunch)
+        ]
+
+    metrics = {'best_5': _to_records(best_5), 'worst_5': _to_records(worst_5)}
+    with open(os.path.join(overlay_dir, 'test_best_worst_metrics.json'), 'w', encoding='utf-8') as f:
+        json.dump(metrics, f, ensure_ascii=False, indent=2)
+    print("  已寫入 test_best_worst_metrics.json（best/worst 5 的 IoU、FP、FN、orig_path）")
 
     print(f"  Overlay 已儲存至: {overlay_dir}")
     print()

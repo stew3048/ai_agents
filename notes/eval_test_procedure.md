@@ -52,11 +52,19 @@
 
 | 項目 | 路徑與命名 |
 |------|------------|
-| **最好 5 張** | `{run_dir}/test_overlays/best_1_iou_0.xxxx.png` ~ `best_5_iou_0.xxxx.png` |
-| **最差 5 張** | `{run_dir}/test_overlays/worst_1_iou_0.xxxx.png` ~ `worst_5_iou_0.xxxx.png` |
+| **最好 5 張** | `best_1_iou_0.xxxx_<split>_<index>.png`（例：`best_1_iou_0.9636_val_0042.png`、`best_1_iou_0.9449_test_0073.png`） |
+| **最差 5 張** | `worst_1_iou_0.xxxx_<split>_<index>.png` |
 
-- Overlay 配色：**藍 = GT**，**紅 = 預測**（與 val overlay 相同）。
+- **對照原檔**：檔名使用 **split 編碼**（`val_0042`、`test_0073`）；該 split 清單的**第 42、73 筆**即為原圖。Val（`val_overlays/`）與 Test（`test_overlays/`）皆採此規則；`*_best_worst_metrics.json` 內有 `orig_path` 可直連原檔。
+- Overlay 配色：**藍 = GT**，**紅 = 預測**（Val / Test 相同）。
 - 依每張圖 **IoU** 排序，取最高 5 張與最低 5 張。
+
+### 2.2b best / worst 5 的數據檔
+
+| 檔案 | 路徑 | 內容 |
+|------|------|------|
+| **Val** | `{run_dir}/val_overlays/val_best_worst_metrics.json` | best_5、worst_5 每筆：rank、source_id、iou、fp_rate、fn_rate、orig_path |
+| **Test** | `{run_dir}/test_overlays/test_best_worst_metrics.json` | 同上 |
 
 ### 2.3 最差 5 張的 FP / FN
 
@@ -77,6 +85,7 @@
 
 ### 4.1 前提
 
+- **Camera inventory 先行**：split 與訓練前先跑 `python scripts/camera_inventory.py`，產出 `outputs/camera_inventory.csv`；日誌前提須依此整理。
 - **Train / Val / Test 張數**：Train、Sanity、Val、Test 各幾張，以及 Val / Test 來自哪個 camera。
 - **各 Camera 的白天／夜晚比例**：從 `outputs/camera_inventory.csv` 取  
   `night_ratio`、`mean_brightness`，表格列出：Camera、張數、夜晚比例、白天／傍晚／黃昏等、平均亮度。
@@ -85,8 +94,8 @@
 
 - 各 Epoch 的：Train Loss/IoU、Sanity IoU、Val Loss、**Val IoU、Val Dice、Val Pixel Acc**。
 - 最佳 Val：Epoch、Val IoU、Val Dice、Val Pixel Acc、Val Loss。
-- Val Overlay 路徑：`val_overlays/`，最好 5、最差 5 的檔名範例。  
-- （若日後有算）Val 的 FP Rate、FN Rate。
+- Val Overlay 路徑：`val_overlays/`，檔名為 **split 編碼**（如 `best_1_iou_0.96_val_0042.png`）可對照 val 清單；**val_best_worst_metrics.json** 記錄 best/worst 5 的 iou、fp_rate、fn_rate、orig_path。  
+- **Val FP Rate、Val FN Rate**：訓練時每 epoch 與完成總結會輸出，並記入 `training_log.csv`（新 runs 含 `val_fp_rate`、`val_fn_rate` 欄）。
 
 ### 4.3 測試（Test）結果
 
@@ -94,7 +103,7 @@
 - **Val vs Test 比較表**：IoU、Dice、Pixel Acc、FP Rate、FN Rate 的落差。
 - **最好 5 張**：每張 IoU。
 - **最差 5 張**：每張 IoU、**FP Rate、FN Rate**。
-- Test Overlay 路徑：`test_overlays/`，最好 5、最差 5 的檔名範例。
+- Test Overlay 路徑：`test_overlays/`，檔名為 **split 編碼**；**test_best_worst_metrics.json** 記錄 best/worst 5 的 iou、fp_rate、fn_rate、orig_path。
 
 ### 4.4 Val 與 Test 的「訓練不好的情境」
 
@@ -106,15 +115,17 @@
 
 ### 4.5 輸出檔與指令
 
-- 訓練日誌、best.pth、val_overlays、test_overlays 之路徑。
+- 訓練日誌、best.pth、val_overlays、test_overlays、**val_best_worst_metrics.json**、**test_best_worst_metrics.json**、`outputs/camera_inventory.csv` 之路徑。
 - 重新跑 Test 評估的指令：`python eval_multi_camera_test.py`（及可選的 `--checkpoint`）。
+- 實驗前 Camera inventory：`python scripts/camera_inventory.py`。
 
 ---
 
-## 5. 參考範例
+## 5. 參考範例與每日日誌
 
 - **完整範例**：`notes/2026-01-24_multi-camera_cross-camera_generalization.md`  
-  含：前提、Val/Test 結果、FP/FN、overlay、失敗情境、domain shift、極端失敗、輸出檔與指令。
+  含：前提、Val/Test 結果、FP/FN、overlay、val/test_best_worst_metrics、失敗情境、domain shift、極端失敗、輸出檔與指令。
+- **每日日誌**：為一整天做結尾時，依 `notes/DAILY_LOG_PROCEDURE.md` 產出 `notes/{YYYY-MM-DD}-{描述}.md`（前提～訓練～評估～測試～觀察～分析～下一步～今日結論）；實驗前須先跑 camera inventory，前提須含各 camera 日夜比。
 
 ---
 

@@ -97,19 +97,21 @@ def train_epoch(model, dataloader, criterion, optimizer, device, use_amp=False):
 
 
 def evaluate(model, dataloader, criterion, device, desc='Eval', use_amp=False):
-    """評估模型（計算 loss 和 metrics）"""
+    """評估模型（計算 loss、metrics 與 FP/FN rate）"""
     model.eval()
     running_loss = 0.0
     total_iou = 0.0
     total_dice = 0.0
     total_pixel_acc = 0.0
+    run_fp, run_fn, run_neg, run_pos = 0.0, 0.0, 0.0, 0.0
     num_batches = 0
-    
+    smooth = 1e-6
+
     with torch.no_grad():
         for images, masks in tqdm(dataloader, desc=f'  {desc}', leave=True):
             images = images.to(device)
             masks = masks.to(device)
-            
+
             if use_amp:
                 with torch.amp.autocast('cuda'):
                     outputs = model(images)
@@ -117,74 +119,109 @@ def evaluate(model, dataloader, criterion, device, desc='Eval', use_amp=False):
             else:
                 outputs = model(images)
                 loss = criterion(outputs, masks)
-            
+
             running_loss += loss.item()
             batch_metrics = calculate_metrics(outputs, masks)
             total_iou += batch_metrics['iou']
             total_dice += batch_metrics['dice']
             total_pixel_acc += batch_metrics['pixel_acc']
+
+            pred_b = (torch.sigmoid(outputs) > 0.5).float()
+            gt_b = (masks > 0.5).float()
+            run_fp += ((pred_b == 1) & (gt_b == 0)).sum().item()
+            run_fn += ((pred_b == 0) & (gt_b == 1)).sum().item()
+            run_neg += (gt_b == 0).sum().item()
+            run_pos += (gt_b == 1).sum().item()
+
             num_batches += 1
-            
+
             # 清理記憶體
             del images, masks, outputs, loss
             torch.cuda.empty_cache() if torch.cuda.is_available() else None
-    
+
     if num_batches == 0:
-        return 0.0, {'iou': 0.0, 'dice': 0.0, 'pixel_acc': 0.0}
-    
+        return 0.0, {'iou': 0.0, 'dice': 0.0, 'pixel_acc': 0.0, 'fp_rate': 0.0, 'fn_rate': 0.0}
+
     avg_loss = running_loss / num_batches
+    fp_rate = run_fp / (run_neg + smooth)
+    fn_rate = run_fn / (run_pos + smooth)
     metrics = {
         'iou': total_iou / num_batches,
         'dice': total_dice / num_batches,
-        'pixel_acc': total_pixel_acc / num_batches
+        'pixel_acc': total_pixel_acc / num_batches,
+        'fp_rate': fp_rate,
+        'fn_rate': fn_rate
     }
-    
+
     return avg_loss, metrics
 
 
-def evaluate_with_predictions(model, dataloader, device, use_amp=False):
-    """評估並返回所有預測結果（用於生成 overlay）"""
+def _source_id_from_path(path: str) -> str:
+    """從 image 路徑產生可對照原檔的短 id：camera_id_filename（例 10870_xxx.jpg）"""
+    fname = os.path.basename(path)
+    parent2 = os.path.dirname(os.path.dirname(path))
+    folder = os.path.basename(parent2)
+    if folder.startswith('skyfinder_'):
+        camera_id = folder[len('skyfinder_'):]
+    else:
+        camera_id = folder or 'unknown'
+    return f"{camera_id}_{fname}"
+
+
+def evaluate_with_predictions(model, dataloader, device, use_amp=False, split_label=None):
+    """
+    評估並返回所有預測結果（用於生成 overlay）。
+    - split_label: 若提供（如 'val','test'），source_id 使用編碼 {split_label}_{index:04d}，方便對照
+      該 split 清單的第 index 筆即為原圖（例 val_0042 → val 清單第 42 筆）。
+    - 每筆含 source_id、orig_path（有 paths 時）。
+    """
     model.eval()
-    all_results = []  # [(image, gt_mask, pred_mask, iou), ...]
-    
+    all_results = []
+    ds = getattr(dataloader, 'dataset', None)
+    paths = getattr(ds, 'image_paths', None) if ds else None
+    bs = dataloader.batch_size
+
     with torch.no_grad():
-        for images, masks in tqdm(dataloader, desc='  Eval (with predictions)', leave=False):
+        for batch_idx, (images, masks) in enumerate(tqdm(dataloader, desc='  Eval (with predictions)', leave=False)):
             images = images.to(device)
             masks = masks.to(device)
-            
+
             if use_amp:
                 with torch.amp.autocast('cuda'):
                     outputs = model(images)
             else:
                 outputs = model(images)
-            
-            # 轉換為預測 mask
+
             pred_probs = torch.sigmoid(outputs)
             pred_masks = (pred_probs > 0.5).float()
-            
-            # 計算每張圖片的 IoU
+
             for i in range(images.shape[0]):
-                image = images[i].cpu()
-                gt_mask = masks[i].cpu()
-                pred_mask = pred_masks[i].cpu()
-                
-                # 計算 IoU
+                gidx = batch_idx * bs + i
+                orig_path = paths[gidx] if paths and gidx < len(paths) else None
+                if split_label is not None:
+                    source_id = f"{split_label}_{gidx:04d}"
+                elif paths and gidx < len(paths):
+                    source_id = _source_id_from_path(paths[gidx])
+                else:
+                    source_id = f"idx{gidx}"
+
                 batch_metrics = calculate_metrics(
-                    outputs[i:i+1].cpu(), 
+                    outputs[i:i+1].cpu(),
                     masks[i:i+1].cpu()
                 )
-                
+
                 all_results.append({
-                    'image': image,
-                    'gt_mask': gt_mask,
-                    'pred_mask': pred_mask,
-                    'iou': batch_metrics['iou']
+                    'image': images[i].cpu(),
+                    'gt_mask': masks[i].cpu(),
+                    'pred_mask': pred_masks[i].cpu(),
+                    'iou': batch_metrics['iou'],
+                    'source_id': source_id,
+                    'orig_path': orig_path
                 })
-            
-            # 清理記憶體
+
             del images, masks, outputs, pred_probs, pred_masks
             torch.cuda.empty_cache() if torch.cuda.is_available() else None
-    
+
     return all_results
 
 
@@ -231,44 +268,66 @@ def create_overlay(image_tensor, gt_mask_tensor, pred_mask_tensor, alpha=0.5):
     return Image.fromarray(overlay)
 
 
+def _safe_overlay_suffix(source_id: str) -> str:
+    """從 source_id 產生可放進 overlay 檔名的安全後綴（不含副檔名，已清理特殊字元）。"""
+    base = os.path.splitext(str(source_id))[0]
+    safe = ''.join(c if (c.isalnum() or c in '_.-') else '_' for c in base)
+    return safe[:80] if len(safe) > 80 else safe
+
+
 def save_val_overlays(model, val_loader, device, output_dir, use_amp=False):
-    """生成並儲存 val set 的 overlay（最好和最差各 5 張）"""
+    """
+    生成並儲存 val set 的 overlay（最好和最差各 5 張），以及 best/worst 5 的 IoU、FP、FN 等。
+    - 檔名使用 split 編碼（val_0042），對照 val 清單第 42 筆即為原圖。
+    """
     print("生成 Val Overlay 視覺化...")
-    
-    # 評估並取得所有預測結果
-    all_results = evaluate_with_predictions(model, val_loader, device, use_amp)
-    
-    # 按 IoU 排序
+
+    all_results = evaluate_with_predictions(model, val_loader, device, use_amp, split_label='val')
+    _smooth = 1e-6
+    for r in all_results:
+        p = (r['pred_mask'] > 0.5).float()
+        g = (r['gt_mask'] > 0.5).float()
+        tn = (g == 0).sum().item()
+        tp = (g == 1).sum().item()
+        r['fp_rate'] = ((p == 1) & (g == 0)).sum().item() / (tn + _smooth)
+        r['fn_rate'] = ((p == 0) & (g == 1)).sum().item() / (tp + _smooth)
+
     all_results.sort(key=lambda x: x['iou'], reverse=True)
-    
-    # 最好和最差的各 5 張
     best_5 = all_results[:5]
     worst_5 = all_results[-5:]
-    
+
     os.makedirs(output_dir, exist_ok=True)
-    
-    # 儲存最好的 5 張
+
+    def _save(bunch, prefix):
+        for i, r in enumerate(bunch):
+            overlay = create_overlay(r['image'], r['gt_mask'], r['pred_mask'])
+            suf = _safe_overlay_suffix(r.get('source_id', ''))
+            name = f'{prefix}_{i+1}_iou_{r["iou"]:.4f}_{suf}.png' if suf else f'{prefix}_{i+1}_iou_{r["iou"]:.4f}.png'
+            overlay.save(os.path.join(output_dir, name))
+
     print("  儲存最好的 5 張...")
-    for i, result in enumerate(best_5):
-        overlay = create_overlay(
-            result['image'],
-            result['gt_mask'],
-            result['pred_mask']
-        )
-        overlay_path = os.path.join(output_dir, f'best_{i+1}_iou_{result["iou"]:.4f}.png')
-        overlay.save(overlay_path)
-    
-    # 儲存最差的 5 張
+    _save(best_5, 'best')
     print("  儲存最差的 5 張...")
-    for i, result in enumerate(worst_5):
-        overlay = create_overlay(
-            result['image'],
-            result['gt_mask'],
-            result['pred_mask']
-        )
-        overlay_path = os.path.join(output_dir, f'worst_{i+1}_iou_{result["iou"]:.4f}.png')
-        overlay.save(overlay_path)
-    
+    _save(worst_5, 'worst')
+
+    def _to_records(bunch):
+        return [
+            {
+                'rank': i + 1,
+                'source_id': r.get('source_id'),
+                'iou': round(float(r['iou']), 6),
+                'fp_rate': round(float(r.get('fp_rate', 0)), 6),
+                'fn_rate': round(float(r.get('fn_rate', 0)), 6),
+                'orig_path': r.get('orig_path'),
+            }
+            for i, r in enumerate(bunch)
+        ]
+
+    metrics = {'best_5': _to_records(best_5), 'worst_5': _to_records(worst_5)}
+    with open(os.path.join(output_dir, 'val_best_worst_metrics.json'), 'w', encoding='utf-8') as f:
+        json.dump(metrics, f, ensure_ascii=False, indent=2)
+    print(f"  已寫入 val_best_worst_metrics.json（best/worst 5 的 IoU、FP、FN、orig_path）")
+
     print(f"  Overlay 已儲存至: {output_dir}")
 
 
@@ -441,7 +500,7 @@ def main():
     print()
     
     # === 初始化訓練日誌 ===
-    log_headers = ['epoch', 'train_loss', 'train_iou', 'sanity_iou', 'val_loss', 'val_iou', 'val_dice', 'val_pixel_acc']
+    log_headers = ['epoch', 'train_loss', 'train_iou', 'sanity_iou', 'val_loss', 'val_iou', 'val_dice', 'val_pixel_acc', 'val_fp_rate', 'val_fn_rate']
     
     # 檢查是否繼續訓練
     start_epoch = 1
@@ -485,7 +544,12 @@ def main():
     print("開始訓練...")
     print("=" * 60)
     print()
-    
+
+    legacy_log = False
+    if os.path.exists(log_file):
+        with open(log_file, 'r', encoding='utf-8') as f:
+            legacy_log = 'val_fp_rate' not in (f.readline() or '')
+    last_val_fp_rate, last_val_fn_rate = None, None
     for epoch in range(start_epoch, epochs + 1):
         print(f"Epoch {epoch}/{epochs}")
         print("-" * 60)
@@ -499,20 +563,24 @@ def main():
         
         # 評估 val set
         val_loss, val_metrics = evaluate(model, val_loader, criterion, device, 'Val', use_amp)
-        
+        last_val_fp_rate = val_metrics.get('fp_rate', 0.0)
+        last_val_fn_rate = val_metrics.get('fn_rate', 0.0)
+
         # 輸出結果（立即刷新）
-        print(f"  Train Loss:  {train_loss:.4f}", flush=True)
-        print(f"  Train IoU:   {train_iou:.4f}", flush=True)
-        print(f"  Sanity IoU:  {sanity_iou:.4f}", flush=True)
-        print(f"  Val Loss:    {val_loss:.4f}", flush=True)
-        print(f"  Val IoU:     {val_metrics['iou']:.4f}", flush=True)
-        print(f"  Val Dice:    {val_metrics['dice']:.4f}", flush=True)
+        print(f"  Train Loss:   {train_loss:.4f}", flush=True)
+        print(f"  Train IoU:    {train_iou:.4f}", flush=True)
+        print(f"  Sanity IoU:   {sanity_iou:.4f}", flush=True)
+        print(f"  Val Loss:     {val_loss:.4f}", flush=True)
+        print(f"  Val IoU:      {val_metrics['iou']:.4f}", flush=True)
+        print(f"  Val Dice:     {val_metrics['dice']:.4f}", flush=True)
         print(f"  Val PixelAcc: {val_metrics['pixel_acc']:.4f}", flush=True)
-        
+        print(f"  Val FP Rate:  {last_val_fp_rate:.4f}  (非天空誤判為天空)", flush=True)
+        print(f"  Val FN Rate:  {last_val_fn_rate:.4f}  (天空漏檢)", flush=True)
+
         # 記錄到 CSV
         with open(log_file, 'a', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow([
+            row = [
                 epoch,
                 f"{train_loss:.6f}",
                 f"{train_iou:.6f}",
@@ -520,8 +588,11 @@ def main():
                 f"{val_loss:.6f}",
                 f"{val_metrics['iou']:.6f}",
                 f"{val_metrics['dice']:.6f}",
-                f"{val_metrics['pixel_acc']:.6f}"
-            ])
+                f"{val_metrics['pixel_acc']:.6f}",
+            ]
+            if not legacy_log:
+                row += [f"{last_val_fp_rate:.6f}", f"{last_val_fn_rate:.6f}"]
+            writer.writerow(row)
         
         # 儲存檢查點
         is_best = val_metrics['iou'] > best_val_iou
@@ -535,11 +606,14 @@ def main():
     print("=" * 60)
     print("訓練完成！")
     print("=" * 60)
-    print(f"最佳 Val IoU: {best_val_iou:.4f}")
+    print(f"最佳 Val IoU:  {best_val_iou:.4f}")
+    if last_val_fp_rate is not None and last_val_fn_rate is not None:
+        print(f"最後 Epoch Val FP Rate: {last_val_fp_rate:.4f}  (非天空誤判為天空)")
+        print(f"最後 Epoch Val FN Rate: {last_val_fn_rate:.4f}  (天空漏檢)")
     print(f"檢查點目錄: {checkpoint_dir}")
     print(f"訓練日誌: {log_file}")
     print()
-    
+
     # === 生成 Val Overlay ===
     print("=" * 60)
     print("生成 Val Overlay 視覺化...")
