@@ -97,15 +97,15 @@ def train_epoch(model, dataloader, criterion, optimizer, device, use_amp=False):
     return avg_loss, avg_iou
 
 
-def evaluate_val_night_metrics(model, dataloader, device, T=0.10, use_amp=False):
+def evaluate_val_night_day_metrics(model, dataloader, device, T=0.10, use_amp=False):
     """
-    計算 val 中 night-ish（luma < T）的 pooled IoU 與 FN rate，供訓練輸出 val_night_iou / val_night_fn。
+    計算 val 中 night-ish（luma < T）與 day（luma >= T）的 pooled IoU、FN rate。
     T=0.10（linear），與 eval_val_only 一致。
+    回傳 (night_iou, night_fn, day_iou, day_fn)；若該子集為空則 (0.0, 0.0)。
     """
     model.eval()
     smooth = 1e-6
     records = []
-    bs = getattr(dataloader, "batch_size", 1)
     with torch.no_grad():
         for batch_idx, (images, masks) in enumerate(dataloader):
             images = images.to(device)
@@ -124,19 +124,25 @@ def evaluate_val_night_metrics(model, dataloader, device, T=0.10, use_amp=False)
                 fp = ((p == 1) & (g == 0)).sum().item()
                 tn = ((p == 0) & (g == 0)).sum().item()
                 fn = ((p == 0) & (g == 1)).sum().item()
-                iou = tp / (tp + fp + fn + smooth)
-                records.append({"luma": luma, "iou": iou, "tp": tp, "fp": fp, "tn": tn, "fn": fn})
+                records.append({"luma": luma, "tp": tp, "fp": fp, "tn": tn, "fn": fn})
             del images, masks, outputs, pred_b, gt_b
             torch.cuda.empty_cache() if torch.cuda.is_available() else None
     night = [r for r in records if r["luma"] < T]
-    if not night:
-        return 0.0, 0.0
-    tp = sum(r["tp"] for r in night)
-    fp = sum(r["fp"] for r in night)
-    fn = sum(r["fn"] for r in night)
-    night_iou = tp / (tp + fp + fn + smooth)
-    night_fn = fn / (tp + fn + smooth)
-    return float(night_iou), float(night_fn)
+    day = [r for r in records if r["luma"] >= T]
+
+    def _pool_iou_fn(items):
+        if not items:
+            return 0.0, 0.0
+        tp = sum(r["tp"] for r in items)
+        fp = sum(r["fp"] for r in items)
+        fn = sum(r["fn"] for r in items)
+        iou = tp / (tp + fp + fn + smooth)
+        fn_rate = fn / (tp + fn + smooth)
+        return float(iou), float(fn_rate)
+
+    night_iou, night_fn = _pool_iou_fn(night)
+    day_iou, day_fn = _pool_iou_fn(day)
+    return night_iou, night_fn, day_iou, day_fn
 
 
 def evaluate(model, dataloader, criterion, device, desc='Eval', use_amp=False):
@@ -548,7 +554,7 @@ def main():
     print()
     
     # === 初始化訓練日誌 ===
-    log_headers = ['epoch', 'train_loss', 'train_iou', 'sanity_iou', 'val_loss', 'val_iou', 'val_dice', 'val_pixel_acc', 'val_fp_rate', 'val_fn_rate', 'val_night_iou', 'val_night_fn']
+    log_headers = ['epoch', 'train_loss', 'train_iou', 'sanity_iou', 'val_loss', 'val_iou', 'val_dice', 'val_pixel_acc', 'val_fp_rate', 'val_fn_rate', 'val_night_iou', 'val_night_fn', 'val_day_iou', 'val_day_fn']
     
     # 檢查是否繼續訓練
     start_epoch = 1
@@ -614,8 +620,8 @@ def main():
         last_val_fp_rate = val_metrics.get('fp_rate', 0.0)
         last_val_fn_rate = val_metrics.get('fn_rate', 0.0)
 
-        # val night-ish（luma < 0.10）的 IoU / FN
-        val_night_iou, val_night_fn = evaluate_val_night_metrics(model, val_loader, device, T=0.10, use_amp=use_amp)
+        # val night（luma < 0.10）與 day（luma >= 0.10）的 IoU / FN
+        val_night_iou, val_night_fn, val_day_iou, val_day_fn = evaluate_val_night_day_metrics(model, val_loader, device, T=0.10, use_amp=use_amp)
 
         # 輸出結果（立即刷新）
         print(f"  Train Loss:   {train_loss:.4f}", flush=True)
@@ -629,6 +635,8 @@ def main():
         print(f"  Val FN Rate:  {last_val_fn_rate:.4f}  (天空漏檢)", flush=True)
         print(f"  Val Night IoU: {val_night_iou:.4f}  (luma<0.10)", flush=True)
         print(f"  Val Night FN:  {val_night_fn:.4f}  (luma<0.10)", flush=True)
+        print(f"  Val Day IoU:   {val_day_iou:.4f}  (luma>=0.10)", flush=True)
+        print(f"  Val Day FN:    {val_day_fn:.4f}  (luma>=0.10)", flush=True)
 
         # 記錄到 CSV
         with open(log_file, 'a', newline='', encoding='utf-8') as f:
@@ -645,7 +653,7 @@ def main():
             ]
             if not legacy_log:
                 row += [f"{last_val_fp_rate:.6f}", f"{last_val_fn_rate:.6f}"]
-            row += [f"{val_night_iou:.6f}", f"{val_night_fn:.6f}"]
+            row += [f"{val_night_iou:.6f}", f"{val_night_fn:.6f}", f"{val_day_iou:.6f}", f"{val_day_fn:.6f}"]
             writer.writerow(row)
         
         # 儲存檢查點

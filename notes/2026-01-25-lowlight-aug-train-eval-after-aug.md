@@ -80,6 +80,8 @@ Val 來自 **9483**，`transform=False`。
 
 ### 2.1 各 Epoch Val 指標（含 Val Night IoU / FN）
 
+**說明**：本 run 當時腳本只計算 **Val Night**（luma&lt;0.10）IoU/FN，**未計算 Val Day**（luma≥0.10）IoU/FN，故下表與 2.2 僅有 night。`train_multi_camera.py` 已改為 `evaluate_val_night_day_metrics`，之後 runs 會一併輸出 **Val Day IoU / Val Day FN** 並寫入 `training_log.csv`。
+
 | Epoch | Train Loss | Train IoU | Sanity IoU | Val IoU | Val Dice | Val Pixel Acc | Val FP | Val FN | **Val Night IoU** | **Val Night FN** |
 |-------|------------|-----------|------------|---------|----------|---------------|--------|--------|-------------------|------------------|
 | 1 | 0.4657 | 0.6409 | 0.6734 | 0.7584 | 0.8550 | 0.8769 | 0.1283 | 0.1164 | 0.7623 | 0.1664 |
@@ -103,6 +105,25 @@ Val 來自 **9483**，`transform=False`。
 
 - **路徑**：`outputs/train_multi_camera_20260125_222612/val_overlays/`
 - **val_best_worst_metrics.json**：best_5 / worst_5 的 source_id、iou、fp_rate、fn_rate、orig_path
+
+### 2.4 為何 Val Night FN 會亂跳？與 aug 的關係
+
+Val Night FN 在 6 個 epoch 的變化：0.17 → **0.00** → **0.25** → 0.01 → 0.06 → 0.11，起伏很大。可能原因如下。
+
+1. **Val 本身沒有做 aug**  
+   Val / sanity / test 皆 `transform=False`，只有 **train** 做低光 aug。因此 Val 影像沒被 augmentation 直接動到，Val night FN 的跳動**不是**「val 被 aug 污染」造成的。
+
+2. **Aug 的間接影響：每個 epoch 的模型不同**  
+   Train 用強低光 aug，每個 epoch 學到的決策邊界都不一樣；同一份 Val（固定、未 aug）在不同 epoch 的模型上，表現自然會變。  
+   若某 epoch 在「多預測一點天空」的方向優化，Val night 的 FN 可能暫時變很低（甚至 0）；下一 epoch 偏「少預測一點」，FN 又拉高。所以 **aug 透過「改變每個 epoch 的模型」間接造成 Val 指標上下**。
+
+3. **Val night-ish 樣本數少，pooled 指標容易大動**  
+   Val 9483 共 100 張，以 T=0.10 切 night-ish 時約 **20 張**（見 `notes/2026-01-25_eval_conclusions_val_test_night_day.md`）。  
+   在只有 ~20 張上算 pooled FN：只要少數幾張從「漏很多」變成「漏很少」（或反過來），FN rate 就會從 0.25 掉到 0.01 或從 0.01 飆到 0.25。  
+   相較之下，**Val day（luma≥0.10）約 80 張**，樣本多，若日後一併輸出 **Val Day IoU / Val Day FN**，預期會比 Val Night 穩定；若只有 night 跳、day 相對平，可支持「主要是 night 樣本少＋模型在 night 上不穩定」的解釋。
+
+4. **之後的 runs**  
+   `train_multi_camera.py` 已改為輸出 **Val Day IoU / Val Day FN** 並寫入 CSV，之後可對照 night 與 day 的走勢，區分是「整體不穩」還是「只有 night 不穩」。
 
 ---
 
