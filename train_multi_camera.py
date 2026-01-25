@@ -228,13 +228,18 @@ def evaluate_with_predictions(model, dataloader, device, use_amp=False, split_la
 def create_overlay(image_tensor, gt_mask_tensor, pred_mask_tensor, alpha=0.5):
     """
     創建 overlay 視覺化
-    
+
+    顏色意義：
+      - 藍色：GT 有、預測沒有 → 漏檢 (FN)，天空沒被預測到
+      - 紅色：預測有、GT 沒有 → 誤判 (FP)，把非天空判成天空
+      - 紫色／粉紫：GT 有且預測有 → 正確 (TP)，藍與紅疊加
+
     參數:
         image_tensor: [C, H, W], 值範圍 [0, 1]
         gt_mask_tensor: [1, H, W], 值範圍 [0, 1]
         pred_mask_tensor: [1, H, W], 值範圍 [0, 1]
         alpha: 透明度
-    
+
     返回:
         PIL Image
     """
