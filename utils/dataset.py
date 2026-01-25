@@ -21,6 +21,18 @@ import torchvision.transforms.functional as TF
 import random
 from typing import List, Dict, Optional
 
+# 低光/低對比 train augmentation（僅用於 transform=True；val/test 不經此）
+# 不涉及 mask 的幾何或插值，mask 保持不變、不受污染
+import albumentations as A
+
+# RandomGamma 的 gamma_limit 為指數範圍；(0.6,1.4) 表偏向變暗～略亮，與常見 (80,120) 對 0.8~1.2 類似
+_TRAIN_AUG_LOWLIGHT = A.Compose([
+    A.RandomBrightnessContrast(brightness_limit=(-0.45, 0.10), contrast_limit=(-0.45, 0.20), p=0.75),
+    A.RandomGamma(gamma_limit=(60, 140), p=0.55),   # 60~140 表示 gamma 0.6~1.4（albumentations 需 int >=1）
+    A.GaussianBlur(blur_limit=(3, 5), p=0.25),
+    A.GaussNoise(var_limit=(5.0, 25.0), p=0.20),
+])
+
 
 class SkySegmentationDataset(Dataset):
     """
@@ -318,53 +330,13 @@ class SkySegmentationDataset(Dataset):
     
     def _apply_augmentation(self, image, mask):
         """
-        應用資料增強
-        
-        包含的增強方式：
-        1. 隨機水平翻轉（機率 0.5）
-        2. 隨機垂直翻轉（機率 0.5）
-        3. 隨機裁切並調整大小
-        
-        參數:
-            image: PIL Image 物件
-            mask: PIL Image 物件
-        
-        返回:
-            augmented_image: 增強後的圖片
-            augmented_mask: 增強後的 mask
+        應用 train 資料增強：僅低光/低對比相關（val/test 不呼叫此函式）。
+        - RandomBrightnessContrast、RandomGamma、GaussianBlur、GaussNoise
+        - 上述皆不修改 mask；mask 原樣回傳，無插值污染。
         """
-        # 隨機水平翻轉
-        if random.random() > 0.5:
-            image = TF.hflip(image)
-            mask = TF.hflip(mask)
-        
-        # 隨機垂直翻轉
-        if random.random() > 0.5:
-            image = TF.vflip(image)
-            mask = TF.vflip(mask)
-        
-        # 隨機裁切並調整大小
-        # 裁切比例範圍：0.7 到 1.0
-        if random.random() > 0.5:
-            crop_ratio = random.uniform(0.7, 1.0)
-            crop_size = (
-                int(self.image_size[0] * crop_ratio),
-                int(self.image_size[1] * crop_ratio)
-            )
-            
-            # 隨機裁切位置
-            i = random.randint(0, image.height - crop_size[0])
-            j = random.randint(0, image.width - crop_size[1])
-            
-            # 對圖片和 mask 進行相同的裁切
-            image = TF.crop(image, i, j, crop_size[0], crop_size[1])
-            mask = TF.crop(mask, i, j, crop_size[0], crop_size[1])
-            
-            # 調整回目標尺寸
-            image = image.resize(self.image_size, Image.BILINEAR)
-            mask = mask.resize(self.image_size, Image.NEAREST)
-        
-        return image, mask
+        img_np = np.array(image, dtype=np.uint8)
+        out = _TRAIN_AUG_LOWLIGHT(image=img_np)
+        return Image.fromarray(out["image"]), mask
 
 
 def get_dataloader(images_dir=None, masks_dir=None, batch_size=8, shuffle=True, 

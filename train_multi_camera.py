@@ -29,6 +29,7 @@ sys.stderr.reconfigure(encoding='utf-8')
 from models import create_unet_model
 from utils.dataset import get_dataloader, load_splits_from_json
 from utils.metrics import calculate_metrics
+from utils.image_utils import mean_luma_linear
 from pathlib import Path
 
 
@@ -94,6 +95,48 @@ def train_epoch(model, dataloader, criterion, optimizer, device, use_amp=False):
     avg_loss = running_loss / num_batches if num_batches > 0 else 0.0
     avg_iou = total_iou / num_batches if num_batches > 0 else 0.0
     return avg_loss, avg_iou
+
+
+def evaluate_val_night_metrics(model, dataloader, device, T=0.10, use_amp=False):
+    """
+    計算 val 中 night-ish（luma < T）的 pooled IoU 與 FN rate，供訓練輸出 val_night_iou / val_night_fn。
+    T=0.10（linear），與 eval_val_only 一致。
+    """
+    model.eval()
+    smooth = 1e-6
+    records = []
+    bs = getattr(dataloader, "batch_size", 1)
+    with torch.no_grad():
+        for batch_idx, (images, masks) in enumerate(dataloader):
+            images = images.to(device)
+            masks = masks.to(device)
+            if use_amp:
+                with torch.amp.autocast("cuda"):
+                    outputs = model(images)
+            else:
+                outputs = model(images)
+            pred_b = (torch.sigmoid(outputs) > 0.5).float()
+            gt_b = (masks > 0.5).float()
+            for i in range(images.shape[0]):
+                luma = mean_luma_linear(images[i])
+                p, g = pred_b[i], gt_b[i]
+                tp = ((p == 1) & (g == 1)).sum().item()
+                fp = ((p == 1) & (g == 0)).sum().item()
+                tn = ((p == 0) & (g == 0)).sum().item()
+                fn = ((p == 0) & (g == 1)).sum().item()
+                iou = tp / (tp + fp + fn + smooth)
+                records.append({"luma": luma, "iou": iou, "tp": tp, "fp": fp, "tn": tn, "fn": fn})
+            del images, masks, outputs, pred_b, gt_b
+            torch.cuda.empty_cache() if torch.cuda.is_available() else None
+    night = [r for r in records if r["luma"] < T]
+    if not night:
+        return 0.0, 0.0
+    tp = sum(r["tp"] for r in night)
+    fp = sum(r["fp"] for r in night)
+    fn = sum(r["fn"] for r in night)
+    night_iou = tp / (tp + fp + fn + smooth)
+    night_fn = fn / (tp + fn + smooth)
+    return float(night_iou), float(night_fn)
 
 
 def evaluate(model, dataloader, criterion, device, desc='Eval', use_amp=False):
@@ -413,7 +456,7 @@ def main():
         split_list=train_list,
         batch_size=batch_size,
         shuffle=True,
-        transform=False,  # 不加 augmentation
+        transform=True,   # 低光/低對比 augmentation（RandomBrightnessContrast, RandomGamma, GaussianBlur, GaussNoise）
         image_size=image_size,
         num_workers=0
     )
@@ -505,7 +548,7 @@ def main():
     print()
     
     # === 初始化訓練日誌 ===
-    log_headers = ['epoch', 'train_loss', 'train_iou', 'sanity_iou', 'val_loss', 'val_iou', 'val_dice', 'val_pixel_acc', 'val_fp_rate', 'val_fn_rate']
+    log_headers = ['epoch', 'train_loss', 'train_iou', 'sanity_iou', 'val_loss', 'val_iou', 'val_dice', 'val_pixel_acc', 'val_fp_rate', 'val_fn_rate', 'val_night_iou', 'val_night_fn']
     
     # 檢查是否繼續訓練
     start_epoch = 1
@@ -571,6 +614,9 @@ def main():
         last_val_fp_rate = val_metrics.get('fp_rate', 0.0)
         last_val_fn_rate = val_metrics.get('fn_rate', 0.0)
 
+        # val night-ish（luma < 0.10）的 IoU / FN
+        val_night_iou, val_night_fn = evaluate_val_night_metrics(model, val_loader, device, T=0.10, use_amp=use_amp)
+
         # 輸出結果（立即刷新）
         print(f"  Train Loss:   {train_loss:.4f}", flush=True)
         print(f"  Train IoU:    {train_iou:.4f}", flush=True)
@@ -581,6 +627,8 @@ def main():
         print(f"  Val PixelAcc: {val_metrics['pixel_acc']:.4f}", flush=True)
         print(f"  Val FP Rate:  {last_val_fp_rate:.4f}  (非天空誤判為天空)", flush=True)
         print(f"  Val FN Rate:  {last_val_fn_rate:.4f}  (天空漏檢)", flush=True)
+        print(f"  Val Night IoU: {val_night_iou:.4f}  (luma<0.10)", flush=True)
+        print(f"  Val Night FN:  {val_night_fn:.4f}  (luma<0.10)", flush=True)
 
         # 記錄到 CSV
         with open(log_file, 'a', newline='', encoding='utf-8') as f:
@@ -597,6 +645,7 @@ def main():
             ]
             if not legacy_log:
                 row += [f"{last_val_fp_rate:.6f}", f"{last_val_fn_rate:.6f}"]
+            row += [f"{val_night_iou:.6f}", f"{val_night_fn:.6f}"]
             writer.writerow(row)
         
         # 儲存檢查點
