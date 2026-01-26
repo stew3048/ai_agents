@@ -169,9 +169,23 @@ def check_mask_pairing(images_dir: str, masks_dir: str, image_files: List[str]) 
     }
 
 
+def srgb_to_linear(v):
+    """
+    sRGB [0,1]（gamma 編碼）→ linear [0,1]。
+    係數 0.2126/0.7152/0.0722 的 luma 公式必須用在 linear RGB，直接用在 sRGB 會高估暗部。
+    """
+    v = np.clip(np.asarray(v, dtype=np.float64), 0, 1)
+    return np.where(v <= 0.04045, v / 12.92, ((v + 0.055) / 1.055) ** 2.4).astype(np.float32)
+
+
 def calculate_brightness_stats(images_dir: str, image_files: List[str], sample_size: int = 50) -> Dict[str, float]:
     """
     計算平均亮度分佈（用來判斷是否有夜晚）
+    
+    使用與訓練/評估一致的計算方式：
+    - sRGB → linear RGB 轉換
+    - luma = 0.2126*R_lin + 0.7152*G_lin + 0.0722*B_lin (ITU-R BT.709)
+    - night 判斷：luma < 0.20（linear RGB 空間，值域 0-1）
     
     Args:
         images_dir: 圖片目錄
@@ -187,7 +201,7 @@ def calculate_brightness_stats(images_dir: str, image_files: List[str], sample_s
             'std_brightness': 0.0,
             'min_brightness': 0.0,
             'max_brightness': 0.0,
-            'night_ratio': 0.0,  # 亮度 < 50 的比例
+            'night_ratio': 0.0,  # luma < 0.20 的比例（linear RGB 空間）
             'samples_processed': 0,
             'status': 'no_images'
         }
@@ -199,8 +213,9 @@ def calculate_brightness_stats(images_dir: str, image_files: List[str], sample_s
     else:
         sampled_files = image_files
     
-    brightness_values = []
+    luma_values = []
     night_count = 0
+    luma_threshold = 0.20  # 與訓練/評估一致
     
     for img_file in sampled_files:
         try:
@@ -211,24 +226,29 @@ def calculate_brightness_stats(images_dir: str, image_files: List[str], sample_s
             if img.mode != 'RGB':
                 img = img.convert('RGB')
             
-            # 轉換為 numpy array
-            img_array = np.array(img)
+            # 轉換為 numpy array，並正規化到 [0, 1]
+            img_array = np.array(img, dtype=np.float32) / 255.0  # [H, W, 3], [0, 1]
             
-            # 計算亮度（使用灰度值：0.299*R + 0.587*G + 0.114*B）
-            gray = 0.299 * img_array[:, :, 0] + 0.587 * img_array[:, :, 1] + 0.114 * img_array[:, :, 2]
-            mean_brightness = np.mean(gray)
+            # sRGB → linear RGB
+            R_lin = srgb_to_linear(img_array[:, :, 0])
+            G_lin = srgb_to_linear(img_array[:, :, 1])
+            B_lin = srgb_to_linear(img_array[:, :, 2])
             
-            brightness_values.append(mean_brightness)
+            # 計算 luma (ITU-R BT.709)
+            luma = 0.2126 * R_lin + 0.7152 * G_lin + 0.0722 * B_lin
+            mean_luma = np.mean(luma)
             
-            # 判斷是否為夜晚（平均亮度 < 50）
-            if mean_brightness < 50:
+            luma_values.append(mean_luma)
+            
+            # 判斷是否為夜晚（luma < 0.20，與訓練/評估一致）
+            if mean_luma < luma_threshold:
                 night_count += 1
                 
         except Exception as e:
             # 如果讀取失敗，跳過
             continue
     
-    if len(brightness_values) == 0:
+    if len(luma_values) == 0:
         return {
             'mean_brightness': 0.0,
             'std_brightness': 0.0,
@@ -239,15 +259,17 @@ def calculate_brightness_stats(images_dir: str, image_files: List[str], sample_s
             'status': 'read_error'
         }
     
-    brightness_array = np.array(brightness_values)
+    luma_array = np.array(luma_values)
     
+    # 為了向後相容，mean_brightness 仍使用 luma 值（但現在是 linear RGB 空間的 luma，值域 0-1）
+    # 如果需要顯示為 0-255 範圍，可以乘以 255，但這裡保持 0-1 範圍以與訓練/評估一致
     return {
-        'mean_brightness': float(np.mean(brightness_array)),
-        'std_brightness': float(np.std(brightness_array)),
-        'min_brightness': float(np.min(brightness_array)),
-        'max_brightness': float(np.max(brightness_array)),
-        'night_ratio': night_count / len(brightness_values),
-        'samples_processed': len(brightness_values),
+        'mean_brightness': float(np.mean(luma_array) * 255.0),  # 轉換為 0-255 範圍以保持向後相容
+        'std_brightness': float(np.std(luma_array) * 255.0),
+        'min_brightness': float(np.min(luma_array) * 255.0),
+        'max_brightness': float(np.max(luma_array) * 255.0),
+        'night_ratio': night_count / len(luma_values),  # luma < 0.20 的比例
+        'samples_processed': len(luma_values),
         'status': 'success'
     }
 

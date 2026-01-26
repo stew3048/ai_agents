@@ -38,6 +38,16 @@ BEFORE = {
     "dusk_fn": None,
 }
 
+# 上一輪 after-aug（2026-01-25 強 aug：brightness/contrast -0.45~0.20, gamma 60~140, blur 3~5, noise, p=0.75/0.55/0.25/0.20）
+AFTER_AUG_ROUND1 = {
+    "overall_iou": 0.5979,
+    "night_iou": 0.5668,
+    "night_fn": 0.0289,
+    "day_iou": 0.6602,
+    "dusk_iou": 0.5709,
+    "dusk_fn": 0.0313,
+}
+
 
 def find_latest_best_checkpoint():
     outputs_dir = Path('outputs')
@@ -274,7 +284,7 @@ def main():
         print(f"  已存 dusk_after_aug: worst IoU 10 → {dusk_dir}")
     print()
 
-    # 改前 vs 改後 對照表
+    # 改前 vs 上一輪 after-aug vs 本輪 對照表
     after = {
         "overall_iou": float(overall_iou),
         "night_iou": float(night_iou_m) if not np.isnan(night_iou_m) else None,
@@ -287,22 +297,25 @@ def main():
     def _v(x):
         return f"{x:.4f}" if x is not None else "—"
 
-    print("=" * 60)
-    print("  改前 vs 改後 對照表")
-    print("=" * 60)
+    print("=" * 80)
+    print("  改前 vs 上一輪 after-aug vs 本輪 對照表")
+    print("=" * 80)
     print()
-    print("  %-18s %12s %12s" % ("", "改前", "改後"))
-    print("  %-18s %12s %12s" % ("overall test IoU", _v(BEFORE["overall_iou"]), _v(after["overall_iou"])))
-    print("  %-18s %12s %12s" % ("night test IoU", _v(BEFORE["night_iou"]), _v(after["night_iou"])))
-    print("  %-18s %12s %12s" % ("night FN", _v(BEFORE["night_fn"]), _v(after["night_fn"])))
-    print("  %-18s %12s %12s" % ("day test IoU", _v(BEFORE["day_iou"]), _v(after["day_iou"])))
-    print("  %-18s %12s %12s" % ("dusk IoU", _v(BEFORE["dusk_iou"]), _v(after["dusk_iou"])))
-    print("  %-18s %12s %12s" % ("dusk FN", _v(BEFORE["dusk_fn"]), _v(after["dusk_fn"])))
+    print("  %-18s %12s %12s %12s" % ("", "改前", "上一輪 after-aug", "本輪"))
+    print("  %-18s %12s %12s %12s" % ("overall test IoU", _v(BEFORE["overall_iou"]), _v(AFTER_AUG_ROUND1["overall_iou"]), _v(after["overall_iou"])))
+    print("  %-18s %12s %12s %12s" % ("night test IoU", _v(BEFORE["night_iou"]), _v(AFTER_AUG_ROUND1["night_iou"]), _v(after["night_iou"])))
+    print("  %-18s %12s %12s %12s" % ("night FN", _v(BEFORE["night_fn"]), _v(AFTER_AUG_ROUND1["night_fn"]), _v(after["night_fn"])))
+    print("  %-18s %12s %12s %12s" % ("day test IoU", _v(BEFORE["day_iou"]), _v(AFTER_AUG_ROUND1["day_iou"]), _v(after["day_iou"])))
+    print("  %-18s %12s %12s %12s" % ("dusk IoU", _v(BEFORE["dusk_iou"]), _v(AFTER_AUG_ROUND1["dusk_iou"]), _v(after["dusk_iou"])))
+    print("  %-18s %12s %12s %12s" % ("dusk FN", _v(BEFORE["dusk_fn"]), _v(AFTER_AUG_ROUND1["dusk_fn"]), _v(after["dusk_fn"])))
     print()
-    print("  成功判準: night FN 明顯下降(0.30→<=0.22)、night IoU 上升(0.63→>=0.70)、day IoU 掉<=0.03 可接受")
-    print("=" * 60)
+    print("  成功判準（本輪 vs 改前）：")
+    print("    - night FN 明顯低於改前（目標 ≤ 0.18）")
+    print("    - day IoU 不再大掉（下降 ≤ 0.03）")
+    print("    - overall IoU 回升（至少 ≥ 0.66，往 0.70 靠）")
+    print("=" * 80)
     print("  完成")
-    print("=" * 60)
+    print("=" * 80)
 
 
 if __name__ == '__main__':

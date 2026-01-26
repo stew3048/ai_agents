@@ -34,7 +34,7 @@ from pathlib import Path
 
 
 class DiceLoss(nn.Module):
-    """Dice Loss"""
+    """Dice Loss（binary，sigmoid 後計算）"""
     def __init__(self, smooth=1e-6):
         super(DiceLoss, self).__init__()
         self.smooth = smooth
@@ -48,6 +48,21 @@ class DiceLoss(nn.Module):
             pred_flat.sum() + target_flat.sum() + self.smooth
         )
         return 1 - dice
+
+
+class CombinedLoss(nn.Module):
+    """BCE + Dice Loss（權重 1:1）"""
+    def __init__(self, bce_weight=1.0, dice_weight=1.0):
+        super(CombinedLoss, self).__init__()
+        self.bce = nn.BCEWithLogitsLoss()
+        self.dice = DiceLoss()
+        self.bce_weight = bce_weight
+        self.dice_weight = dice_weight
+    
+    def forward(self, pred, target):
+        bce_loss = self.bce(pred, target)
+        dice_loss = self.dice(pred, target)
+        return self.bce_weight * bce_loss + self.dice_weight * dice_loss
 
 
 def train_epoch(model, dataloader, criterion, optimizer, device, use_amp=False):
@@ -276,12 +291,13 @@ def evaluate_with_predictions(model, dataloader, device, use_amp=False, split_la
 
 def create_overlay(image_tensor, gt_mask_tensor, pred_mask_tensor, alpha=0.5):
     """
-    創建 overlay 視覺化
+    創建 overlay 視覺化（**只標示錯誤**，TP/TN 保持原圖，避免與正確區域的藍紅疊加混淆）
 
-    顏色意義：
-      - 藍色：GT 有、預測沒有 → 漏檢 (FN)，天空沒被預測到
-      - 紅色：預測有、GT 沒有 → 誤判 (FP)，把非天空判成天空
-      - 紫色／粉紫：GT 有且預測有 → 正確 (TP)，藍與紅疊加
+    顏色意義（請勿混淆）：
+      - 藍色：漏檢 (FN) — GT 有天空、預測沒有 → 「天空沒被預測到」
+      - 紅色：誤判 (FP) — 預測有天空、GT 沒有 → 「把非天空判成天空」
+
+    注意：藍色 ≠「非天空被誤認成天空」；「非天空被誤認成天空」= 誤判 (FP) = 紅色。
 
     參數:
         image_tensor: [C, H, W], 值範圍 [0, 1]
@@ -299,25 +315,20 @@ def create_overlay(image_tensor, gt_mask_tensor, pred_mask_tensor, alpha=0.5):
     gt_mask_np = gt_mask_tensor.squeeze(0).numpy()  # [H, W]
     pred_mask_np = pred_mask_tensor.squeeze(0).numpy()  # [H, W]
     
-    # 創建 overlay
-    overlay = image_np.copy().astype(np.float32)
+    # 二值化（與 metrics 一致：>0.5 為 sky）
+    gt_b = (gt_mask_np > 0.5)
+    pred_b = (pred_mask_np > 0.5)
+    # 只標示錯誤：FN = GT 有、預測沒有；FP = 預測有、GT 沒有
+    fn_mask = gt_b & (~pred_b)
+    fp_mask = pred_b & (~gt_b)
     
-    # GT mask: 藍色 (0, 100, 255)
-    gt_overlay = np.zeros_like(overlay)
-    gt_overlay[:, :, 0] = 0
-    gt_overlay[:, :, 1] = 100
-    gt_overlay[:, :, 2] = 255
-    gt_mask_3d = np.stack([gt_mask_np] * 3, axis=-1)
-    overlay = overlay * (1 - gt_mask_3d * alpha) + gt_overlay * (gt_mask_3d * alpha)
-    
-    # Pred mask: 紅色 (255, 50, 50)
-    pred_overlay = np.zeros_like(overlay)
-    pred_overlay[:, :, 0] = 255
-    pred_overlay[:, :, 1] = 50
-    pred_overlay[:, :, 2] = 50
-    pred_mask_3d = np.stack([pred_mask_np] * 3, axis=-1)
-    overlay = overlay * (1 - pred_mask_3d * alpha * 0.7) + pred_overlay * (pred_mask_3d * alpha * 0.7)
-    
+    overlay = image_np.astype(np.float32).copy()
+    blue = np.array([0, 100, 255], dtype=np.float32)   # FN：漏檢，天空沒被預測到
+    red = np.array([255, 50, 50], dtype=np.float32)    # FP：誤判，把非天空判成天空
+    fn_3d = np.stack([fn_mask] * 3, axis=-1)
+    fp_3d = np.stack([fp_mask] * 3, axis=-1)
+    overlay = np.where(fn_3d, overlay * (1 - alpha) + blue * alpha, overlay)
+    overlay = np.where(fp_3d, overlay * (1 - alpha * 0.9) + red * (alpha * 0.9), overlay)
     overlay = overlay.clip(0, 255).astype(np.uint8)
     return Image.fromarray(overlay)
 
@@ -462,7 +473,7 @@ def main():
         split_list=train_list,
         batch_size=batch_size,
         shuffle=True,
-        transform=True,   # 低光/低對比 augmentation（RandomBrightnessContrast, RandomGamma, GaussianBlur, GaussNoise）
+        transform=True,   # 條件式 augmentation（方案 B：僅對 night 樣本做強 aug）
         image_size=image_size,
         num_workers=0
     )
@@ -500,10 +511,10 @@ def main():
     print()
     
     # === 定義損失函數和優化器 ===
-    criterion = nn.BCEWithLogitsLoss()
+    criterion = nn.BCEWithLogitsLoss()  # 方案 B: 僅 BCE（條件式 aug：僅 night 樣本做強 aug）
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     
-    print(f"損失函數: BCEWithLogitsLoss")
+    print(f"損失函數: BCEWithLogitsLoss（方案 B：條件式 aug，僅 night 樣本做強 aug）")
     print(f"優化器: Adam (lr={learning_rate})")
     print()
     

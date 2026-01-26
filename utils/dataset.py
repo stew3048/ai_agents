@@ -25,7 +25,7 @@ from typing import List, Dict, Optional
 # 不涉及 mask 的幾何或插值，mask 保持不變、不受污染
 import albumentations as A
 
-# RandomGamma 的 gamma_limit 為指數範圍；(0.6,1.4) 表偏向變暗～略亮，與常見 (80,120) 對 0.8~1.2 類似
+# 強 aug 版本（方案 B：條件式使用，僅對 night 樣本套用）
 _TRAIN_AUG_LOWLIGHT = A.Compose([
     A.RandomBrightnessContrast(brightness_limit=(-0.45, 0.10), contrast_limit=(-0.45, 0.20), p=0.75),
     A.RandomGamma(gamma_limit=(60, 140), p=0.55),   # 60~140 表示 gamma 0.6~1.4（albumentations 需 int >=1）
@@ -306,7 +306,7 @@ class SkySegmentationDataset(Dataset):
         image = image.resize(self.image_size, Image.BILINEAR)
         mask = mask.resize(self.image_size, Image.NEAREST)  # mask 使用最近鄰插值避免模糊
         
-        # 資料增強（僅在訓練時）
+        # 資料增強（僅在訓練時，且僅對 night 樣本套用強 aug）
         if self.transform:
             image, mask = self._apply_augmentation(image, mask)
         
@@ -330,13 +330,30 @@ class SkySegmentationDataset(Dataset):
     
     def _apply_augmentation(self, image, mask):
         """
-        應用 train 資料增強：僅低光/低對比相關（val/test 不呼叫此函式）。
+        應用 train 資料增強（方案 B：條件式）：
+        - 僅對 night 樣本（luma < 0.20）套用強 aug
+        - day 樣本（luma >= 0.20）不做 aug，保持原樣
         - RandomBrightnessContrast、RandomGamma、GaussianBlur、GaussNoise
         - 上述皆不修改 mask；mask 原樣回傳，無插值污染。
         """
-        img_np = np.array(image, dtype=np.uint8)
-        out = _TRAIN_AUG_LOWLIGHT(image=img_np)
-        return Image.fromarray(out["image"]), mask
+        # 計算圖片 luma（用於判斷是否為 night 樣本）
+        img_np = np.array(image, dtype=np.float32) / 255.0  # [H, W, 3], [0, 1]
+        # 轉為 linear RGB 並計算 luma
+        def srgb_to_linear(v):
+            return np.where(v <= 0.04045, v / 12.92, ((v + 0.055) / 1.055) ** 2.4)
+        R_lin = srgb_to_linear(img_np[:, :, 0])
+        G_lin = srgb_to_linear(img_np[:, :, 1])
+        B_lin = srgb_to_linear(img_np[:, :, 2])
+        mean_luma = (0.2126 * R_lin + 0.7152 * G_lin + 0.0722 * B_lin).mean()
+        
+        # 僅對 night 樣本（luma < 0.20）套用強 aug
+        if mean_luma < 0.20:
+            img_np_uint8 = (img_np * 255).astype(np.uint8)
+            out = _TRAIN_AUG_LOWLIGHT(image=img_np_uint8)
+            return Image.fromarray(out["image"]), mask
+        else:
+            # day 樣本不做 aug，保持原樣
+            return image, mask
 
 
 def get_dataloader(images_dir=None, masks_dir=None, batch_size=8, shuffle=True, 
