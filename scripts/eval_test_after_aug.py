@@ -225,7 +225,9 @@ def main():
         print(f"      FN rate:  %7.4f ± %7.4f" % (fn_m, fn_s))
         print()
 
-    # dusk：pooled IoU / FP rate / FN rate
+    # night / day / dusk：pooled IoU / FP rate / FN rate（用於簡短報表）
+    night_iou_pooled, night_fp_pooled, night_fn_pooled = _pool(night_list) if night_list else (np.nan, np.nan, np.nan)
+    day_iou_pooled, day_fp_pooled, day_fn_pooled = _pool(day_list) if day_list else (np.nan, np.nan, np.nan)
     if dusk_list:
         dusk_iou, dusk_fp, dusk_fn = _pool(dusk_list)
         print(f"  [dusk] n={len(dusk_list)} (p25~p50)")
@@ -235,6 +237,89 @@ def main():
         print()
     else:
         dusk_iou = dusk_fp = dusk_fn = np.nan
+
+    # 簡短報表：day/night/dusk 的 FP/FN（pooled）
+    print("=" * 80)
+    print("  簡短報表：Day / Night / Dusk 的 FP/FN（pooled）")
+    print("=" * 80)
+    print()
+    
+    # 計算絕對 FP/FN 數量（pooled）
+    def _get_pooled_counts(items):
+        if not items:
+            return 0, 0, 0, 0
+        tp = sum(x['tp'] for x in items)
+        fp = sum(x['fp'] for x in items)
+        tn = sum(x['tn'] for x in items)
+        fn = sum(x['fn'] for x in items)
+        return tp, fp, tn, fn
+    
+    night_tp, night_fp_abs, night_tn, night_fn_abs = _get_pooled_counts(night_list)
+    day_tp, day_fp_abs, day_tn, day_fn_abs = _get_pooled_counts(day_list)
+    dusk_tp, dusk_fp_abs, dusk_tn, dusk_fn_abs = _get_pooled_counts(dusk_list)
+    
+    print(f"  [day] n={len(day_list)}")
+    print(f"      FP (pooled): {day_fp_abs:,} (rate: {day_fp_pooled:.4f})")
+    print(f"      FN (pooled): {day_fn_abs:,} (rate: {day_fn_pooled:.4f})")
+    print(f"      IoU (pooled): {day_iou_pooled:.4f}")
+    print()
+    
+    print(f"  [night] n={len(night_list)}")
+    print(f"      FP (pooled): {night_fp_abs:,} (rate: {night_fp_pooled:.4f})")
+    print(f"      FN (pooled): {night_fn_abs:,} (rate: {night_fn_pooled:.4f})")
+    print(f"      IoU (pooled): {night_iou_pooled:.4f}")
+    print()
+    
+    if dusk_list:
+        print(f"  [dusk] n={len(dusk_list)}")
+        print(f"      FP (pooled): {dusk_fp_abs:,} (rate: {dusk_fp:.4f})")
+        print(f"      FN (pooled): {dusk_fn_abs:,} (rate: {dusk_fn:.4f})")
+        print(f"      IoU (pooled): {dusk_iou:.4f}")
+        print()
+    
+    # 分析 day IoU 下降的原因（與改前 baseline 比較）
+    print("=" * 80)
+    print("  Day IoU 下降原因分析（本輪 vs 改前 baseline）")
+    print("=" * 80)
+    print()
+    
+    before_day_iou = BEFORE.get("day_iou")
+    if before_day_iou is not None and not np.isnan(day_iou_pooled):
+        day_iou_drop = before_day_iou - day_iou_pooled
+        print(f"  Day IoU 變化：{before_day_iou:.4f} → {day_iou_pooled:.4f} (下降 {day_iou_drop:.4f})")
+        print()
+        
+        # 分析：FP 增加？FN 增加？還是邊界偏移？
+        # 由於沒有改前的 FP/FN 數據，我們只能分析本輪的情況
+        # 但可以從 IoU 公式推斷：IoU = TP / (TP + FP + FN)
+        # 如果 IoU 下降，可能是：
+        # 1. FP 增加（分母增加）
+        # 2. FN 增加（分母增加）
+        # 3. TP 減少（分子減少，可能伴隨 FN 增加）
+        # 4. 邊界偏移（IoU 掉但 FP/FN 沒很誇張）
+        
+        print("  分析：")
+        print(f"    - Day FP rate: {day_fp_pooled:.4f} (絕對值: {day_fp_abs:,})")
+        print(f"    - Day FN rate: {day_fn_pooled:.4f} (絕對值: {day_fn_abs:,})")
+        print()
+        
+        # 判斷主要問題
+        if day_fp_pooled > 0.15:  # FP rate 較高
+            print("    → 主要問題：FP 增加（將非天空誤認為天空）")
+        elif day_fn_pooled > 0.10:  # FN rate 較高
+            print("    → 主要問題：FN 增加（將天空誤認為非天空）")
+        elif day_fp_pooled < 0.10 and day_fn_pooled < 0.10:
+            print("    → 可能原因：邊界偏移（IoU 下降但 FP/FN 不誇張）")
+            print("      可能是預測邊界與真實邊界有輕微偏移，導致 IoU 下降")
+        else:
+            print("    → 混合問題：FP 和 FN 都有一定程度的增加")
+        print()
+    else:
+        print("  無法分析：缺少改前 baseline 的 day IoU 數據")
+        print()
+    
+    print("=" * 80)
+    print()
 
     # 收集改後數值（用於對照表）
     night_iou_m = _mean_std([x['iou'] for x in night_list])[0] if night_list else np.nan

@@ -25,12 +25,12 @@ from typing import List, Dict, Optional
 # 不涉及 mask 的幾何或插值，mask 保持不變、不受污染
 import albumentations as A
 
-# 強 aug 版本（方案 B：條件式使用，僅對 night 樣本套用）
+# 微調 aug 版本（方案 A：條件式使用，僅對 night 樣本套用，強度稍弱以減少對 day 的影響）
 _TRAIN_AUG_LOWLIGHT = A.Compose([
-    A.RandomBrightnessContrast(brightness_limit=(-0.45, 0.10), contrast_limit=(-0.45, 0.20), p=0.75),
-    A.RandomGamma(gamma_limit=(60, 140), p=0.55),   # 60~140 表示 gamma 0.6~1.4（albumentations 需 int >=1）
-    A.GaussianBlur(blur_limit=(3, 5), p=0.25),
-    A.GaussNoise(var_limit=(5.0, 25.0), p=0.20),
+    A.RandomBrightnessContrast(brightness_limit=(-0.35, 0.10), contrast_limit=(-0.35, 0.20), p=0.70),
+    A.RandomGamma(gamma_limit=(65, 135), p=0.50),   # 65~135 表示 gamma 0.65~1.35（albumentations 需 int >=1）
+    A.GaussianBlur(blur_limit=(3, 5), p=0.20),
+    A.GaussNoise(var_limit=(5.0, 25.0), p=0.15),
 ])
 
 

@@ -473,7 +473,7 @@ def main():
         split_list=train_list,
         batch_size=batch_size,
         shuffle=True,
-        transform=True,   # 條件式 augmentation（方案 B：僅對 night 樣本做強 aug）
+        transform=True,   # 條件式 augmentation（方案 A：僅對 night 樣本做微調 aug，強度稍弱）
         image_size=image_size,
         num_workers=0
     )
@@ -511,10 +511,10 @@ def main():
     print()
     
     # === 定義損失函數和優化器 ===
-    criterion = nn.BCEWithLogitsLoss()  # 方案 B: 僅 BCE（條件式 aug：僅 night 樣本做強 aug）
+    criterion = nn.BCEWithLogitsLoss()  # 方案 A: 僅 BCE（條件式 aug：僅 night 樣本做微調 aug，強度稍弱）
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     
-    print(f"損失函數: BCEWithLogitsLoss（方案 B：條件式 aug，僅 night 樣本做強 aug）")
+    print(f"損失函數: BCEWithLogitsLoss（方案 A：條件式 aug，僅 night 樣本做微調 aug，強度稍弱）")
     print(f"優化器: Adam (lr={learning_rate})")
     print()
     
