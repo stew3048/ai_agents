@@ -280,4 +280,205 @@ previews/
 
 ---
 
-*紀錄日期：2026-01-28*
+## 8. 後續更新：新增三個新 Camera 補齊情境覆蓋
+
+### 8.1 新增 Camera 的背景
+
+為了補齊 diagnostic set 的情境覆蓋，新增三個新 camera：
+
+| Camera | 張數 | 特殊情境 | 說明 |
+|--------|------|----------|------|
+| **3888** | ~1626 | `scene=sea`, `sea_sky_confusable=1` | 海天易混淆情境（原本資料中沒有） |
+| **4795** | ~725 | `occlusion=heavy` | 嚴重遮擋情境 |
+| **21444** | ~305 | `has_sky=FALSE` | 完全沒有天空的情境 |
+
+### 8.2 資料整理過程
+
+**步驟**：
+1. 將 `data/3888`、`data/4795`、`data/21444` 整理成標準格式
+2. 建立 `images/` 和 `masks/` 資料夾結構
+3. 重新命名為 `data/skyfinder_3888/`、`data/skyfinder_4795/`、`data/skyfinder_21444/`
+4. 將 images 重新命名為標準格式（001.jpg, 002.jpg, ...）
+5. 使用單一 template mask 複製成對應的 mask（001.png, 002.png, ...）
+
+**腳本**：`scripts/prepare_new_cameras_for_diagnostic.py`
+
+### 8.3 加入 Diagnostic Set
+
+**抽樣策略**：
+- 每個新 camera 各抽 20 張（按檔名排序取前 20）
+- 總計新增 60 張到 `diagnostic_candidates.csv`
+
+**預設標註**（針對新加入的 20 張）：
+- **3888**：
+  - `scene=sea`
+  - `sea_sky_confusable=1`（首次有真正的海天混淆 case）
+  - `has_sky=TRUE`
+  - `occlusion=none`
+- **4795**：
+  - `occlusion=heavy`（嚴重遮擋）
+  - `scene=urban`（預設）
+- **21444**：
+  - `has_sky=FALSE`（完全沒有天空）
+
+### 8.4 手動補標註
+
+**3888 的額外 5 張**（手動補標）：
+- `297`: `weather=rain, light=day`
+- `429`: `weather=fog, light=day`
+- `444`: `weather=clear, light=dusk`
+- `508`: `weather=clear, light=day`
+- `873`: `weather=fog, light=day`
+
+這些補標讓「海＋各種天氣／光線」的組合更完整，特別是 `sea_sky_confusable=1` 配合不同 weather/light 的情境。
+
+### 8.5 人工標註完成狀態
+
+✅ **已完成人工標註的欄位**：
+- `scene`：sea / urban / forest / other（四類都有覆蓋）
+- `occlusion`：none / partial / heavy（三類都有覆蓋）
+- `weather`：clear / cloudy / rain / fog / snow / unknown
+- `light`：day / dusk / night（已修正自動判斷的錯誤）
+
+✅ **發現**：
+- `sea_sky_confusable` 全為 0（原本資料中沒有真正的海天混淆 case）
+- 因此引入 camera 3888 來補齊這個情境
+
+---
+
+## 9. Diagnostic Set 的完整情境覆蓋
+
+### 9.1 目前 Diagnostic Candidates 的 Camera 分布
+
+根據 `data/test_data/diagnostic_candidates.csv`（最新版本）：
+
+| Camera | 樣本數 | 在 DL Model 中的角色 | 說明 |
+|--------|--------|---------------------|------|
+| 10066 | 13 | Train | 原本訓練資料 |
+| 1093 | 19 | Train | 原本訓練資料 |
+| 9112 | 21 | Train | 原本訓練資料 |
+| 9291 | 17 | Train | 原本訓練資料 |
+| 9483 | 23 | Val | 原本驗證資料 |
+| 10870 | 10 | Test | 原本測試資料（unseen camera） |
+| **3888** | **25** | **Unseen** | 新增：海天混淆情境 |
+| **4795** | **20** | **Unseen** | 新增：嚴重遮擋情境 |
+| **21444** | **20** | **Unseen** | 新增：無天空情境 |
+| **總計** | **168** | | |
+
+### 9.2 Unseen Camera 記錄
+
+**重要**：以下 camera 在 diagnostic set 中，但**不在原本 DL model 的訓練資料中**：
+
+| Camera ID | 樣本數 | 特殊情境 | 用途 |
+|-----------|--------|----------|------|
+| **3888** | 25 | `scene=sea`, `sea_sky_confusable=1` | 測試海天混淆情境下的模型表現 |
+| **4795** | 20 | `occlusion=heavy` | 測試嚴重遮擋情境下的模型表現 |
+| **21444** | 20 | `has_sky=FALSE` | 測試無天空情境下的模型表現（FP 分析） |
+| **10870** | 10 | Test camera（原本就是 unseen） | 跨 camera 泛化評估 |
+
+**原本 DL Model 見過的 Camera**：
+- Train: 10066, 9291, 9112, 1093
+- Val: 9483
+- Test: 10870（但 diagnostic set 中只抽了 10 張）
+
+**總計 Unseen Camera 樣本**：75 張（3888: 25 + 4795: 20 + 21444: 20 + 10870: 10）
+
+### 9.3 情境維度完整度
+
+目前 diagnostic set 已涵蓋：
+
+**Scene 維度**：
+- ✅ `sea`：3888 提供（25 張，含 `sea_sky_confusable=1`）
+- ✅ `urban`：多個 camera 提供
+- ✅ `forest`：9291, 10066 提供
+- ✅ `other`：可能有
+
+**Occlusion 維度**：
+- ✅ `none`：多個 camera 提供
+- ✅ `partial`：多個 camera 提供
+- ✅ `heavy`：4795 提供（20 張）
+
+**Weather 維度**：
+- ✅ `clear`：多個 camera 提供
+- ✅ `cloudy`：多個 camera 提供
+- ✅ `rain`：3888 (297), 1093, 9483 提供
+- ✅ `fog`：3888 (429, 873), 10066, 9483 提供
+- ✅ `snow`：9483 提供
+- ✅ `unknown`：部分樣本待補
+
+**Light 維度**：
+- ✅ `day`：多個 camera 提供
+- ✅ `dusk`：多個 camera 提供
+- ✅ `night`：多個 camera 提供
+
+**Sky Presence / Confusability**：
+- ✅ `has_sky=TRUE`：大部分 camera
+- ✅ `has_sky=FALSE`：21444 提供（20 張）
+- ✅ `sea_sky_confusable=1`：3888 提供（25 張）
+
+---
+
+## 10. 方法理解與選模策略的準備
+
+### 10.1 Diagnostic Set 的用途
+
+這份 diagnostic set 現在可以用來：
+
+1. **比較不同方法在不同情境下的表現**
+   - DL model（U-Net / multi-camera trained）
+   - VLM（如 GPT-4V, Claude Vision）
+   - SAM（Segment Anything Model）
+
+2. **分析 Failure Mode**
+   - 哪些情境下 DL model 表現差？
+   - 哪些情境下 VLM/SAM 表現好？
+   - Unseen camera（3888, 4795, 21444）vs Seen camera 的差異
+
+3. **建立選模策略**
+   - 什麼情境適合用 DL model？
+   - 什麼情境適合用 VLM/SAM？
+   - 什麼情境需要 ensemble 或 fallback？
+
+### 10.2 後續分析方向
+
+**建議的分析軸**：
+- Camera（domain shift）：Seen vs Unseen
+- Scene：sea vs urban vs forest
+- Occlusion：none vs partial vs heavy
+- Weather：clear vs fog vs rain vs snow
+- Light：day vs dusk vs night
+- Sky presence：has_sky=TRUE vs FALSE
+- Sea-sky confusion：sea_sky_confusable=0 vs 1
+
+**下一步**：
+- 使用這份 diagnostic set 跑不同模型的預測
+- 計算各情境組合下的 IoU / FP / FN
+- 對照出「哪種方法在哪些情境特別好/特別差」
+
+---
+
+## 11. 今日結論（更新）
+
+> **成功建立完整的情境診斷資料集，包含 168 張樣本，涵蓋 9 個 camera（其中 4 個是 unseen）。已完成人工標註 scene、occlusion、weather、light 四個情境維度，並補齊了原本缺失的 `sea_sky_confusable=1` 和 `has_sky=FALSE` 情境。這為後續的方法理解與選模策略分析提供了完整的基礎。**
+
+**關鍵成果**：
+1. ✅ 產生兩份資料清單（Hold-out Test 和 Diagnostic Scenario Set）
+2. ✅ 實現自動標註邏輯（light、has_sky、pred_sky_area_ratio、weather）
+3. ✅ 生成縮圖 preview 方便人工標註
+4. ✅ 新增三個新 camera（3888, 4795, 21444）補齊情境覆蓋
+5. ✅ 完成人工標註四個情境維度（scene, occlusion, weather, light）
+6. ✅ 記錄 unseen camera（3888, 4795, 21444, 10870）用於 domain shift 分析
+
+**重要發現**：
+- 原本資料中沒有真正的 `sea_sky_confusable=1` case，透過引入 3888 補齊
+- 透過 4795 補齊 `occlusion=heavy` 情境
+- 透過 21444 補齊 `has_sky=FALSE` 情境
+
+**下一步**：
+- 使用這份 diagnostic set 進行不同模型（DL vs VLM/SAM）的比較分析
+- 建立情境 vs 方法的 success/failure 對照表
+- 發展選模策略
+
+---
+
+*紀錄日期：2026-01-28（更新）*
