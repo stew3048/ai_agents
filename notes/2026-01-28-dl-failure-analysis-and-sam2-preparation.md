@@ -45,7 +45,116 @@
 
 ---
 
-## 2. 詳細視覺化報告
+## 2. 五個情境子集的 DL 失敗模式分析
+
+### 2.1 子集合定義與切片方法
+
+使用 `scripts/analyze_diagnostic_failures.py` 從 `diagnostic_with_dl_metrics.csv`（166 個樣本）中，按照以下規則切片並選出每個情境的 top-5 worst 案例：
+
+| 子集名稱 | 篩選條件 | 排序依據 | 直覺問題 |
+|---------|---------|---------|---------|
+| **no-sky** | `has_sky == FALSE` | `dl_pred_positive_ratio` 由大到小 | 在「沒有天空」的圖裡，哪幾張 DL 預測出最多「天空」？ |
+| **sea-sky-confusable** | `sea_sky_confusable == 1` | `dl_fp_rate` 由大到小 | 海天混淆場景中，哪幾張 FP 最嚴重？ |
+| **heavy-occlusion** | `occlusion == heavy` | `dl_fn_rate` 由大到小 | 嚴重遮擋下，哪幾張漏檢天空最嚴重？ |
+| **night** | `light == night` 且 `has_sky == TRUE` | `dl_iou` 由小到大 | 夜間有天空的圖裡，整體 IoU 最差的前 5 張 |
+| **urban** | `scene == urban` 且 `has_sky == TRUE` | `dl_fp_rate` 由大到小 | 都市場景中，哪幾張把非天空（建築、反光）當天空的 FP 最嚴重？ |
+
+**輸出檔案**：
+- `outputs/failure_cases_analysis.csv`：25 個 top-5 worst 樣本（5 個情境 × 5 個）
+- `outputs/failure_analysis_report.md`：文字版分析報告
+
+### 2.2 各子集的 DL 失敗模式摘要
+
+#### 2.2.1 NO-SKY 子集
+
+- **資料來源**：Camera **21444**（20 張全 no-sky）
+- **Top-5**：全部來自 21444（image 11, 13, 16, 17, 20）
+- **指標特徵**：
+  - `dl_pred_positive_ratio` ≈ 0.41–0.45
+  - `dl_fp_rate` 同上（因為沒有 GT sky，所有 positive 都是 FP）
+- **一句話失敗模式**：
+  > 亮牆/雪地/高亮度區域被當成天空，模型只靠顏色亮度判斷
+
+**觀察**：DL 幾乎是「只要夠亮就很容易被當成天空」，對「沒有天空但很亮」的場景沒有語義制約。
+
+---
+
+#### 2.2.2 SEA–SKY-CONFUSABLE 子集
+
+- **資料來源**：Camera **3888**（scene=sea, sea_sky_confusable=1）
+- **Top-5**：image 429, 297, 873, 508, 17
+- **指標特徵**：
+  - `dl_fp_rate` 約 0.17–0.34
+  - `dl_iou` 約 0.46–0.58
+- **一句話失敗模式**：
+  > 海天顏色相似導致部分誤判（海面反光/波浪被當成天空）
+
+**觀察**：DL 會在海面反光、地平線附近「沾黏」成天空，邊界 jitter 明顯，IoU 雖不極差但 FP 偏高。
+
+---
+
+#### 2.2.3 HEAVY-OCCLUSION 子集
+
+- **資料來源**：Camera **4795**（`occlusion=heavy`）
+- **Top-5**：image 9, 4, 2, 8, 13
+- **指標特徵**：
+  - `dl_fp_rate` 明顯偏高（0.17–0.22）
+  - `dl_fn_rate` 較低（0.01–0.04）
+  - `dl_iou` 很低（~0.16–0.20）
+- **一句話失敗模式**：
+  > **建築物邊緣/旁邊的建築物被誤判為天空（FP 主導）**
+
+**觀察**：雖然腳本用 `dl_fn_rate` 排序，但實際檢查 overlay 和數據發現，這些案例的 **FP rate 遠高於 FN rate**，主要問題是把建築物邊緣、旁邊的建築物（特別是亮色/反光部分）誤判為天空。這是 **FP 主導**的失敗模式，而非 FN（漏檢天空）。
+
+**修正說明**：初始分析誤以為是「漏檢天空（FN）」，但實際查看 overlay 和 `diagnostic_with_failure_modes.csv` 中的 `failure_mode` 標註，這些樣本都是 `FP_dominant`，`failure_reason` 為「建築邊緣誤判 | 嚴重遮擋場景 | 整體IoU低」。
+
+---
+
+#### 2.2.4 NIGHT 子集
+
+- **資料來源**：Camera **9112** + **9483**（night & has_sky=TRUE）
+- **Top-5**：9112 (59, 47, 26, 91), 9483 (40)
+- **指標特徵**：
+  - `dl_fn_rate` 高（~0.18–0.29）
+  - `dl_iou` 中等（0.64–0.82）
+- **一句話失敗模式**：
+  > 夜間低對比度，模型無法識別天空邊界，導致漏檢
+
+**觀察**：在夜景中，天空與建築/山體亮度非常接近，DL 難以找出正確的 sky–non-sky 邊界，狹長天空常被吃掉。
+
+---
+
+#### 2.2.5 URBAN 子集
+
+- **資料來源**：Camera **4795**（heavy urban）、部分 seen camera
+- **Top-5**（在 failure_cases_analysis 裡）：4795 (11, 12, 17, 18, 16)
+- **指標特徵**：
+  - `dl_fp_rate` 非常高（約 0.32–0.34）
+  - `dl_iou` 很低（~0.12）
+- **一句話失敗模式**：
+  > 建築物頂部/玻璃反光與天空混淆，模型誤判非天空為天空
+
+**觀察**：DL 很容易把「建築物頂部、玻璃反光、強反光邊緣」塗成天空，FP 主導；特別在 4795 這種 heavy-occlusion + urban 的情境。
+
+---
+
+### 2.3 三份檔案之間的關係
+
+1. **`outputs/diagnostic_with_dl_metrics.csv`**
+   - 全部 166 張 diagnostic 的 DL 指標（IoU, FP Rate, FN Rate, pred_positive_ratio）
+   - 來源：`scripts/eval_diagnostic_set.py` 對 `diagnostic_candidates.csv` 執行 DL inference
+
+2. **`outputs/diagnostic_with_failure_modes.csv`**
+   - 在上面再加上 `failure_mode`（FP_dominant / FN_dominant / good / balanced）與 `failure_reason` 的人工/半自動歸納
+   - 來源：`scripts/add_failure_mode_to_csv.py` 自動分類 + 用戶手動修正
+
+3. **`outputs/failure_cases_analysis.csv`**
+   - 用 `scripts/analyze_diagnostic_failures.py` 從 166 張裡面，按照上述五個子集的規則，挑出每個子集的 top-5 worst，並把它們匯總成 25 筆「代表性失敗案例」
+   - 用於後續 SAM 2.0 評估和對比分析
+
+---
+
+## 3. 詳細視覺化報告
 
 ### 2.1 腳本建立
 
