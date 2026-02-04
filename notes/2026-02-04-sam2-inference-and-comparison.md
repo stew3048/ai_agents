@@ -1,4 +1,4 @@
-# 2026-01-28 SAM 2.0 Inference 與 DL 對比流程
+# 2026-02-04 SAM 2.0 Inference 與 DL 對比流程
 
 > 依計畫執行：對 25 個 failure cases 跑 SAM 2.0 inference，並生成 DL vs SAM 2.0 對比報告。
 
@@ -92,5 +92,5 @@ python scripts/generate_dl_vs_sam_comparison.py
 - **執行**：於 .venv 內執行 `eval_sam2_failure_cases.py --model_type sam2_hiera_small --device cpu`（25 筆）、`generate_dl_vs_sam_comparison.py`，產出實際 SAM 2.0 指標與對比報告。
 - **說明文件**：  
   - Overlay 顏色：紅色 = FP（預測為天空但 GT 非天空），藍色 = FN（GT 為天空但預測非天空）。  
-  - 新增 `notes/2026-01-28-vlm-scenario-why-better-worse.md`，整理五情境中 VLM 變好／變爛原因，以及 sea-sky-confusable、heavy-occlusion 表現不佳之說明（提示策略與情境特性）。
+  - 新增 `notes/2026-02-04-vlm-scenario-why-better-worse.md`，整理五情境中 VLM 變好／變爛原因，以及 sea-sky-confusable、heavy-occlusion 表現不佳之說明（提示策略與情境特性）。
 - **產物**：`outputs/sam2_failure_cases_metrics.csv`、`outputs/sam2_overlays/`、`outputs/dl_vs_sam_comparison.csv`、`outputs/dl_vs_sam_comparison_report.md`，以及本則日誌與 VLM 情境說明筆記。
