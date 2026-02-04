@@ -198,7 +198,8 @@ def generate_comparison_report(comparison_csv, output_report):
                 f.write(f"**平均 IoU**：\n")
                 f.write(f"- DL: {avg_dl_iou:.4f}\n")
                 f.write(f"- SAM 2.0: {avg_sam_iou:.4f}\n")
-                f.write(f"- 改善: {avg_sam_iou - avg_dl_iou:.4f} ({((avg_sam_iou - avg_dl_iou) / avg_dl_iou * 100):.1f}%)\n\n")
+                pct = f"({((avg_sam_iou - avg_dl_iou) / avg_dl_iou * 100):.1f}%)" if avg_dl_iou else "(N/A)"
+                f.write(f"- 改善: {avg_sam_iou - avg_dl_iou:.4f} {pct}\n\n")
             
             if scenario_dl_fp and scenario_sam_fp:
                 avg_dl_fp = sum(scenario_dl_fp) / len(scenario_dl_fp)
@@ -206,7 +207,8 @@ def generate_comparison_report(comparison_csv, output_report):
                 f.write(f"**平均 FP Rate**：\n")
                 f.write(f"- DL: {avg_dl_fp:.4f}\n")
                 f.write(f"- SAM 2.0: {avg_sam_fp:.4f}\n")
-                f.write(f"- 改善: {avg_sam_fp - avg_dl_fp:.4f} ({((avg_sam_fp - avg_dl_fp) / avg_dl_fp * 100):.1f}%)\n\n")
+                pct_fp = f"({((avg_sam_fp - avg_dl_fp) / avg_dl_fp * 100):.1f}%)" if avg_dl_fp else "(N/A)"
+                f.write(f"- 改善: {avg_sam_fp - avg_dl_fp:.4f} {pct_fp}\n\n")
             
             if scenario_dl_fn and scenario_sam_fn:
                 avg_dl_fn = sum(scenario_dl_fn) / len(scenario_dl_fn)
@@ -214,7 +216,8 @@ def generate_comparison_report(comparison_csv, output_report):
                 f.write(f"**平均 FN Rate**：\n")
                 f.write(f"- DL: {avg_dl_fn:.4f}\n")
                 f.write(f"- SAM 2.0: {avg_sam_fn:.4f}\n")
-                f.write(f"- 改善: {avg_sam_fn - avg_dl_fn:.4f} ({((avg_sam_fn - avg_dl_fn) / avg_dl_fn * 100):.1f}%)\n\n")
+                pct_fn = f"({((avg_sam_fn - avg_dl_fn) / avg_dl_fn * 100):.1f}%)" if avg_dl_fn else "(N/A)"
+                f.write(f"- 改善: {avg_sam_fn - avg_dl_fn:.4f} {pct_fn}\n\n")
             
             # Top 改善/惡化案例
             improvements = []

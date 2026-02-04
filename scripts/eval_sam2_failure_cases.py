@@ -32,17 +32,11 @@ sys.stderr.reconfigure(encoding='utf-8')
 
 try:
     import sam2
-    from sam2.build_sam import build_sam2
     from sam2.sam2_image_predictor import SAM2ImagePredictor
     SAM2_AVAILABLE = True
 except ImportError:
-    try:
-        # 嘗試替代導入方式
-        from sam2 import build_sam2, SAM2ImagePredictor
-        SAM2_AVAILABLE = True
-    except ImportError:
-        SAM2_AVAILABLE = False
-        print("[WARNING] SAM 2.0 not available. Please install: pip install sam2")
+    SAM2_AVAILABLE = False
+    print("[WARNING] SAM 2.0 not available. Please install: pip install sam2")
 
 
 def parse_float(value):
@@ -55,9 +49,18 @@ def parse_float(value):
         return None
 
 
+# 對應 HuggingFace model_id（sam2 套件 1.1+ 使用 from_pretrained）
+MODEL_TYPE_TO_HF_ID = {
+    'sam2_hiera_tiny': 'facebook/sam2-hiera-tiny',
+    'sam2_hiera_small': 'facebook/sam2-hiera-small',
+    'sam2_hiera_base': 'facebook/sam2-hiera-base-plus',
+    'sam2_hiera_large': 'facebook/sam2-hiera-large',
+}
+
+
 def load_sam2_model(model_type='sam2_hiera_large', device='cuda'):
     """
-    載入 SAM 2.0 模型
+    載入 SAM 2.0 模型（經由 HuggingFace model_id）
     
     參數:
         model_type: 模型類型（sam2_hiera_tiny, sam2_hiera_small, sam2_hiera_base, sam2_hiera_large）
@@ -69,13 +72,10 @@ def load_sam2_model(model_type='sam2_hiera_large', device='cuda'):
     if not SAM2_AVAILABLE:
         raise ImportError("SAM 2.0 is not installed. Please install: pip install sam2")
     
-    print(f"載入 SAM 2.0 模型: {model_type}")
+    model_id = MODEL_TYPE_TO_HF_ID.get(model_type, 'facebook/sam2-hiera-large')
+    print(f"載入 SAM 2.0 模型: {model_type} -> {model_id}")
     
-    # 構建模型
-    sam2_model = build_sam2(model_type, device=device)
-    
-    # 創建 predictor
-    predictor = SAM2ImagePredictor(sam2_model)
+    predictor = SAM2ImagePredictor.from_pretrained(model_id, device=device)
     
     print(f"  ✓ 模型載入完成")
     
@@ -382,6 +382,7 @@ def process_failure_cases(input_csv, output_csv, overlay_dir, model_type='sam2_h
         subset_name = row.get('subset_name', '')
         camera_id = row.get('camera_id', '')
         image_id = row.get('image_id', '')
+        key = (str(camera_id), str(image_id))
         
         # 構建圖片路徑
         # 優先從 diagnostic_with_failure_modes.csv 獲取 path
@@ -412,7 +413,6 @@ def process_failure_cases(input_csv, output_csv, overlay_dir, model_type='sam2_h
             continue
         
         # 獲取 has_sky 資訊
-        key = (camera_id, image_id)
         has_sky = True
         if key in diagnostic_data:
             has_sky = diagnostic_data[key].get('has_sky', '').upper() == 'TRUE'
@@ -454,6 +454,35 @@ def process_failure_cases(input_csv, output_csv, overlay_dir, model_type='sam2_h
         print("  沒有結果可寫入")
 
 
+def process_failure_cases_stub(input_csv, output_csv, overlay_dir):
+    """
+    當 SAM 2.0 未安裝時：讀取相同輸入，產出相同格式的 CSV，SAM 2.0 欄位為空。
+    讓後續 generate_dl_vs_sam_comparison.py 仍可執行（對比時 SAM 數值為 N/A）。
+    """
+    print(f"讀取: {input_csv}")
+    rows = []
+    with open(input_csv, 'r', encoding='utf-8-sig') as f:
+        reader = csv.DictReader(f)
+        fieldnames_in = reader.fieldnames or []
+        for row in reader:
+            rows.append(row)
+    print(f"  讀取了 {len(rows)} 筆資料")
+    stub_columns = ['sam2_iou', 'sam2_fp_rate', 'sam2_fn_rate', 'sam2_pred_positive_ratio', 'sam2_overlay_path']
+    results = []
+    for row in rows:
+        result_row = dict(row)
+        for col in stub_columns:
+            result_row[col] = ''
+        results.append(result_row)
+    fieldnames = list(fieldnames_in) + [c for c in stub_columns if c not in fieldnames_in]
+    os.makedirs(os.path.dirname(output_csv) or '.', exist_ok=True)
+    with open(output_csv, 'w', encoding='utf-8-sig', newline='') as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction='ignore')
+        writer.writeheader()
+        writer.writerows(results)
+    print(f"寫入 stub 結果: {output_csv}（{len(results)} 筆，SAM 2.0 欄位為空）")
+
+
 def main():
     parser = argparse.ArgumentParser(description='對 failure_cases_analysis.csv 執行 SAM 2.0 inference')
     parser.add_argument('--input_csv', type=str, default='outputs/failure_cases_analysis.csv',
@@ -468,13 +497,22 @@ def main():
     parser.add_argument('--device', type=str, default='cuda',
                        choices=['cuda', 'cpu'],
                        help='計算設備')
+    parser.add_argument('--stub', action='store_true',
+                       help='無 SAM 2.0 時仍產出 CSV（欄位為空），供對比腳本使用')
     
     args = parser.parse_args()
     
-    if not SAM2_AVAILABLE:
-        print("[ERROR] SAM 2.0 is not installed.")
-        print("Please install: pip install sam2")
-        sys.exit(1)
+    if not SAM2_AVAILABLE or args.stub:
+        print("[INFO] SAM 2.0 未安裝或使用 --stub，產出空白 SAM 指標 CSV 供對比腳本使用")
+        process_failure_cases_stub(
+            args.input_csv,
+            args.output_csv,
+            args.overlay_dir,
+        )
+        if not SAM2_AVAILABLE:
+            print("請安裝 sam2（需 Python >= 3.10）後重新執行以產生實際 SAM 2.0 結果。")
+        print("\n完成。")
+        return
     
     print("=" * 60)
     print("  SAM 2.0 Failure Cases Evaluation")
