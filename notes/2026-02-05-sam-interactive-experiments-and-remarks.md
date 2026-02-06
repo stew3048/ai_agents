@@ -66,17 +66,19 @@
 
 ### 使用 Anaconda Prompt 執行的指令
 
-在 **Anaconda Prompt** 中，先進入專案目錄並啟動環境，再執行互動式 SAM（若本機 PowerShell 遇 torch DLL 錯誤，可改用 Anaconda 環境）：
+在 **Anaconda Prompt** 中，先進入專案目錄並**啟動虛擬環境**（專案使用 Python venv，請用以下指令），再執行互動式 SAM（若本機 PowerShell 遇 torch DLL 錯誤，可改用此方式）：
 
 ```batch
 cd c:\Users\yiching\ai_projects
-conda activate .venv
+.venv\Scripts\activate
 python scripts/sam2_interactive_one_image.py --camera_id 4795 --image_id 9
 ```
 
-- 若要自訂 overlay 檔名後綴（例如存成 `009_interactive_overlay_Test1.png`）：
+- 若要自訂 overlay 檔名後綴（例如存成 `009_interactive_overlay_Test1.png`），加上 `--suffix`：
 
 ```batch
+cd c:\Users\yiching\ai_projects
+.venv\Scripts\activate
 python scripts/sam2_interactive_one_image.py --camera_id 4795 --image_id 9 --suffix Test1
 ```
 
