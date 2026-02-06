@@ -24,8 +24,11 @@ from PIL import Image
 from pathlib import Path
 from tqdm import tqdm
 
-# 添加專案根目錄到 sys.path
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# 添加專案根目錄與 scripts 到 sys.path（供 dino_sky_prompt 等）
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, _root)
+sys.path.insert(0, _script_dir)
 
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
@@ -37,6 +40,13 @@ try:
 except ImportError:
     SAM2_AVAILABLE = False
     print("[WARNING] SAM 2.0 not available. Please install: pip install sam2")
+
+# DINO 提示（可選）
+try:
+    from dino_sky_prompt import get_prompt_from_dino, _load_dino_model
+    DINO_PROMPT_AVAILABLE = True
+except ImportError:
+    DINO_PROMPT_AVAILABLE = False
 
 
 def parse_float(value):
@@ -148,14 +158,17 @@ def get_prompt_strategy(subset_name, image_shape):
         return 'box', np.array([[x1, y1, x2, y2]])
 
 
-def predict_with_sam2(predictor, image_path, subset_name):
+def predict_with_sam2(predictor, image_path, subset_name, use_dino=False, dino_model=None, device='cuda'):
     """
     使用 SAM 2.0 進行預測
     
     參數:
         predictor: SAM2ImagePredictor
         image_path: 圖片路徑
-        subset_name: 情境名稱
+        subset_name: 情境名稱（use_dino=False 時使用）
+        use_dino: 若 True，用 DINOv2 找「最像天空」的點當 prompt
+        dino_model: use_dino 時傳入的 DINOv2 模型
+        device: DINO 推論裝置
     
     返回:
         pred_mask: 預測 mask [H, W] (0/1)
@@ -168,7 +181,10 @@ def predict_with_sam2(predictor, image_path, subset_name):
     predictor.set_image(image_np)
     
     # 獲取提示策略
-    prompt_type, prompt_data = get_prompt_strategy(subset_name, image_np.shape[:2])
+    if use_dino and dino_model is not None:
+        prompt_type, prompt_data = get_prompt_from_dino(image_np, device=device, dino_model=dino_model)
+    else:
+        prompt_type, prompt_data = get_prompt_strategy(subset_name, image_np.shape[:2])
     
     # 執行預測
     if prompt_type == 'box':
@@ -346,9 +362,10 @@ def create_overlay_for_sam2(image_path, gt_mask, pred_mask, output_path, alpha=0
     overlay_img.save(output_path)
 
 
-def process_failure_cases(input_csv, output_csv, overlay_dir, model_type='sam2_hiera_large', device='cuda'):
+def process_failure_cases(input_csv, output_csv, overlay_dir, model_type='sam2_hiera_large', device='cuda', use_dino=False):
     """
-    處理 failure_cases_analysis.csv 中的所有樣本
+    處理 failure_cases_analysis.csv 中的所有樣本。
+    use_dino: 若 True，用 DINOv2 找「最像天空」的點當 SAM 的 prompt。
     """
     print(f"讀取: {input_csv}")
     
@@ -359,6 +376,14 @@ def process_failure_cases(input_csv, output_csv, overlay_dir, model_type='sam2_h
             rows.append(row)
     
     print(f"  讀取了 {len(rows)} 筆資料")
+    
+    dino_model = None
+    if use_dino:
+        if not DINO_PROMPT_AVAILABLE:
+            raise RuntimeError("DINO 提示需 dino_sky_prompt 模組（且需可載入 DINOv2）。請確認 scripts 路徑並安裝依賴。")
+        print("載入 DINOv2（用於 sky point prompt）...")
+        dino_model = _load_dino_model(device)
+        print("  ✓ DINOv2 載入完成")
     
     # 載入 SAM 2.0 模型
     predictor = load_sam2_model(model_type=model_type, device=device)
@@ -419,7 +444,10 @@ def process_failure_cases(input_csv, output_csv, overlay_dir, model_type='sam2_h
         
         # SAM 2.0 預測
         try:
-            pred_mask = predict_with_sam2(predictor, image_path, subset_name)
+            pred_mask = predict_with_sam2(
+                predictor, image_path, subset_name,
+                use_dino=use_dino, dino_model=dino_model, device=device
+            )
         except Exception as e:
             print(f"\n[ERROR] 預測失敗 {camera_id}/{image_id}: {e}")
             continue
@@ -499,6 +527,8 @@ def main():
                        help='計算設備')
     parser.add_argument('--stub', action='store_true',
                        help='無 SAM 2.0 時仍產出 CSV（欄位為空），供對比腳本使用')
+    parser.add_argument('--prompt', type=str, default='legacy', choices=['legacy', 'dino'],
+                       help='SAM 的 prompt 來源：legacy=依情境 heuristics，dino=用 DINOv2 找最像天空的點')
     
     args = parser.parse_args()
     
@@ -518,11 +548,23 @@ def main():
     print("  SAM 2.0 Failure Cases Evaluation")
     print("=" * 60)
     print()
+    use_dino = (args.prompt == 'dino')
+    if use_dino:
+        if not DINO_PROMPT_AVAILABLE:
+            print("[ERROR] --prompt dino 需要 dino_sky_prompt 模組與 DINOv2（torch.hub）。請在專案根目錄或 scripts 下執行。")
+            sys.exit(1)
+        # 預設輸出改為 _dino 後綴，避免覆蓋 legacy 結果
+        if args.output_csv == 'outputs/sam2_failure_cases_metrics.csv':
+            args.output_csv = 'outputs/sam2_failure_cases_metrics_dino.csv'
+        if args.overlay_dir == 'outputs/sam2_overlays':
+            args.overlay_dir = 'outputs/sam2_overlays_dino'
+    
     print(f"  輸入 CSV:     {args.input_csv}")
     print(f"  輸出 CSV:     {args.output_csv}")
     print(f"  Overlay 目錄: {args.overlay_dir}")
     print(f"  模型類型:     {args.model_type}")
     print(f"  計算設備:     {args.device}")
+    print(f"  Prompt:       {args.prompt}")
     print()
     
     # 檢查設備
@@ -535,7 +577,8 @@ def main():
         args.output_csv,
         args.overlay_dir,
         model_type=args.model_type,
-        device=args.device
+        device=args.device,
+        use_dino=use_dino
     )
     
     print("\n" + "=" * 60)
