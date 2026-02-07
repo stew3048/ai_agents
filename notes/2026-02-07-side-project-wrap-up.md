@@ -1,7 +1,7 @@
 # Sky Segmentation Side Project — 收尾總結
 
 > 依 notes 日誌整理：目標、做了什麼、Findings、Conclusion。  
-> 日期：2026-02-06
+> 日期：2026-02-07
 
 ---
 
