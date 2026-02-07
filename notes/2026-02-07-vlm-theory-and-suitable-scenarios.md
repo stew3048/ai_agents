@@ -1,7 +1,7 @@
 # VLM（CLIPSeg）適用情境：理論推論與實測對照
 
 > 從 VLM 的機制推論它「理論上」適合哪些情境，並與三方法實測結果對照。  
-> 日期：2026-02-06
+> 日期：2026-02-07
 
 ---
 
@@ -54,5 +54,5 @@
 ## 四、產出與指令
 
 - **三方法報告**：`outputs/three_methods_by_scenario_report.md`（含各情境主要指標、最適合方法、Urban FN 說明與各「為什麼」）。
-- **本則日誌**：`notes/2026-02-06-vlm-theory-and-suitable-scenarios.md`。
+- **本則日誌**：`notes/2026-02-07-vlm-theory-and-suitable-scenarios.md`。
 - **重跑三方法彙總**：`python scripts/compare_three_methods_by_scenario.py`。
