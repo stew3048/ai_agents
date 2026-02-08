@@ -1,0 +1,25 @@
+# Agent 自動執行（不需手動批准）
+
+當使用者希望「不要一直守在電腦前按 Accept、讓 Agent 自動做下去」時，請提醒或協助以下設定。
+
+## 在 Cursor 裡開啟自動執行
+
+1. 開啟 **Cursor 設定**：`Ctrl + Shift + J`（Windows/Linux）或 `Cmd + Shift + J`（Mac）。
+2. 在左側找到 **Features**（或「功能」）→ **Chat** / **Agent** / **Automation**。
+3. 開啟：
+   - **Enable yolo mode**（若有的話）：Agent 執行終端指令、寫入檔案時可不先徵求批准。
+   - **Auto-Apply to Files Outside Context**（若有的話）：Composer 可自動套用變更到目前上下文以外的檔案。
+
+## 已寫入的 settings.json
+
+使用者的 `%APPDATA%\Cursor\User\settings.json` 已加入：
+
+- `cursor.chat.autoApplyToFilesOutsideContext`: true  
+- `cursor.agent.enableYoloMode`: true  
+
+若 Cursor 版本不支援上述 key，不會報錯，只是不生效；請改由 **設定 UI** 手動開啟對應選項。
+
+## 注意
+
+- Yolo 模式會讓 Agent 在未經你逐次確認下執行指令與寫檔，請在可信專案中使用。
+- 部分 Cursor 版本中，「程式碼變更」仍會要求按 Accept（為安全設計）；若 UI 有「Review changes」或「Auto-apply agent edits」等選項，可一併開啟以減少手動批准。

@@ -2,6 +2,8 @@
 
 > 當你為一整天做結尾、要寫當天日誌時，依本流程產出 `notes/{YYYY-MM-DD}-{描述}.md`，之後就不必重複說明。
 
+**固定規則**：日誌一律放在 **notes/** 目錄下。依專案使用該專案的 notes：手寫辨識用 `handwriting-recognition-project/notes/`，天空分割／本專案用 `ai_projects/notes/`。
+
 ---
 
 ## 1. 觸發時機與檔名
