@@ -72,19 +72,3 @@ SAM 可分成三階段：**Image Encoder → Prompt Encoder → Mask Decoder**�
 
 - **ViT**：以 patch + Transformer 做影像特徵，偏全局關係；我們專案中 DL（U-Net）未使用，SAM、CLIPSeg、DINO 有使用。
 - **SAM**：先以 ViT 產出整圖 patch 特徵，再與編碼後的提示一起送入 Mask Decoder 產出分割結果；因此「先用 ViT 輸出每個 patch 的特徵，再接分割相關架構」的理解是正確的。
-
----
-
-## 五、MLP vs CNN 筆記（來源：`C:\Users\yiching\handwriting-recognition-project\node`）
-
-### 總結
-
-因為 MLP 是全連結神經網路，它不像 CNN 內建局部性與平移等 inductive bias，所以本身沒有明確的空間結構假設；
-相對地，CNN 透過局部卷積與權重共享，自然保留了影像的空間關係。
-MLP 的表達能力其實非常彈性，但正因為缺乏這些結構性假設，它通常需要更多資料才能學到穩定、可泛化的表示，否則容易 overfitting；
-在這個 MNIST 的例子中，MLP 不容易快速學到「某個視覺 pattern 在不同位置出現仍屬於同一概念」，因此在效率與穩定性上不如 CNN。
-
-### 自問自答 QA
-
-- **Q：那為什麼不用 MLP 就好？**
-- **A：** 在影像這種高度結構化的資料上，適當的 inductive bias 其實比模型彈性更重要，因為它能大幅降低 sample complexity。
