@@ -18,4 +18,4 @@
 
 **日誌一律放在 notes/**：手寫辨識相關日誌用 `handwriting-recognition-project/notes/`，本專案（天空分割）用 `ai_projects/notes/`。
 
-參考：handwriting-recognition-project 的 `node/RULES.md`。
+參考：handwriting-recognition-project 的 `notes/RULES.md`。

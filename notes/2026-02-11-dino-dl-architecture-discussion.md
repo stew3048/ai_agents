@@ -671,6 +671,25 @@ DINOv2 → Patch features (37×37×768)
 - 討論訓練與評估的細節
 - 開始實作
 
+### 4.3 相關 Plan 記錄
+
+**Plan 文件位置**：`C:\Users\yiching\.cursor\plans\actionable-analysis-next-step_272786bb.plan.md`
+
+**Plan 內容摘要**：
+- **目標**：以「提升整體 accuracy」為主目標，先做「取樣重平衡」A/B 實驗
+- **主要步驟**：
+  1. 建立可行動的基線報表（overall acc、關鍵 pair 錯誤率）
+  2. Sampler Rebalance A/B 實驗（Baseline vs Class-balanced vs Mild rebalance）
+  3. 把分析結果轉成「下一步動作」（Pass/Fail + 建議）
+  4. 輸出可決策報告（Overall metrics、Key pairs、決策門檻、建議下一步）
+- **涉及檔案**：
+  - `handwriting-recognition-project/scripts/train_emnist_digits_letters.py`
+  - `handwriting-recognition-project/scripts/datasets.py`
+  - `handwriting-recognition-project/scripts/evaluate_emnist_digits_letters.py`
+  - `handwriting-recognition-project/notes/2026-02-11_emnist36-phase1-clean-representation-analysis.md`
+
+**注意**：此 plan 為手寫辨識專案相關，記錄於此作為參考。
+
 ---
 
 ## 五、今日結論
