@@ -673,23 +673,18 @@ DINOv2 → Patch features (37×37×768)
 
 ### 4.3 相關 Plan 記錄
 
-**Plan 文件位置**：`C:\Users\yiching\.cursor\plans\actionable-analysis-next-step_272786bb.plan.md`
+**Plan 文件位置**：`C:\Users\yiching\.cursor\plans\sky_segmentation_final_evaluation_pipeline_7b22261e.plan`
 
 **Plan 內容摘要**：
-- **目標**：以「提升整體 accuracy」為主目標，先做「取樣重平衡」A/B 實驗
+- **目標**：最大化已知 camera 集合的整體表現，採用 in-domain split（每個 camera 都參與訓練），固定 test_list.txt，公平比較所有方法。
 - **主要步驟**：
-  1. 建立可行動的基線報表（overall acc、關鍵 pair 錯誤率）
-  2. Sampler Rebalance A/B 實驗（Baseline vs Class-balanced vs Mild rebalance）
-  3. 把分析結果轉成「下一步動作」（Pass/Fail + 建議）
-  4. 輸出可決策報告（Overall metrics、Key pairs、決策門檻、建議下一步）
-- **涉及檔案**：
-  - `handwriting-recognition-project/scripts/train_emnist_digits_letters.py`
-  - `handwriting-recognition-project/scripts/datasets.py`
-  - `handwriting-recognition-project/scripts/evaluate_emnist_digits_letters.py`
-  - `handwriting-recognition-project/notes/2026-02-11_emnist36-phase1-clean-representation-analysis.md`
-
-**注意**：此 plan 為手寫辨識專案相關，記錄於此作為參考。
-
+  1. Step 1: 建立 metadata.csv（所有影像）
+  2. Step 2: 方案 S - 每個 camera 做 80/10/10 split（時間序）
+  3. Step 3: 重新訓練 DL 模型（使用新 split）
+  4. Step 4: 評估 DL baseline（使用固定 test_list.txt）
+  5. Step 5: 評估 VLM → SAM pipeline（使用相同 test_list.txt）
+  6. Step 6: 評估 CLIPSeg（使用相同 test_list.txt）
+  7. Step 7: 產出統一 metrics_summary.csv
 ---
 
 ## 五、今日結論
