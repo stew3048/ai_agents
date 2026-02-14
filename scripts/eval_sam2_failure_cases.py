@@ -257,7 +257,19 @@ def load_gt_mask(image_path, camera_id, image_id, has_sky=True):
         return None, False
     
     mask_img = Image.open(mask_path).convert('L')
-    mask_np = np.array(mask_img, dtype=np.float32) / 255.0
+    mask_array = np.array(mask_img)
+    
+    # 處理不同格式的 mask：
+    # 1. 布林值（True/False）：True 代表天空
+    # 2. 數值（0-255）：需要正規化到 0-1
+    if mask_array.dtype == bool:
+        # 布林值：True = 天空
+        mask_np = mask_array.astype(np.float32)
+    else:
+        # 數值：正規化到 0-1
+        mask_np = mask_array.astype(np.float32)
+        if mask_np.max() > 1.0:
+            mask_np = mask_np / 255.0
     
     return mask_np, True
 

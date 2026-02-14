@@ -1,0 +1,19 @@
+---
+description: 評估腳本一律產出 overlay；不同方法用同一套評估流程（test list + metrics + overlay）。
+globs: scripts/eval_*.py, colab/eval_*.py
+alwaysApply: false
+---
+
+# 評估流程（所有方法共用）
+
+**每次跑評估都要給 overlay，不需再問。**
+
+不論是 CLIPSeg、Grounding DINO+SAM、DINO-DL、DINOv2 兩層解碼頭或任何新方法：
+
+1. **輸入**：同一份 test list（如 `outputs/test_list.txt` 或小樣本 `outputs/test_list_small.txt`）、同一 data 路徑。
+2. **輸出**：
+   - **Metrics**：IoU / Dice / FP_rate / FN_rate（per-image、per-camera、整體），可追加到同一 CSV。
+   - **Overlay**：**一定要有**。每張圖產出一張 overlay（原圖 + 預測與 GT 疊圖：TP=綠、FP=紅、FN=藍），存到 `--overlay_dir` 指定目錄；預設目錄由各腳本約定（例如與 checkpoint 同層的 `*_overlays/`）。
+3. **腳本**：每個評估腳本都應支援 `--overlay_dir`（預設為有值），僅在明確 `--no_overlay` 時才不寫入；文件與日誌中**不要**再重複提醒「記得加 overlay」，實作上已預設產出。
+
+不同方法用**同一套評估**（同一 test list、同一 metrics、同一 overlay 規則），方便比較。

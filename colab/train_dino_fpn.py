@@ -1,0 +1,512 @@
+"""
+DINO-FPN 訓練腳本（Colab 專屬版本，參數化）
+
+訓練 DINO → DL 方案：FPN-like Decoder
+所有路徑和參數都可通過 CLI 指定
+DINO: 凍結（frozen）
+
+輸出：
+- {outputs_dir}/train_dino_fpn_YYYYMMDD_HHMMSS/checkpoints/best.pth
+- {outputs_dir}/train_dino_fpn_YYYYMMDD_HHMMSS/training_log.csv
+"""
+
+import os
+import csv
+import sys
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from tqdm import tqdm
+from datetime import datetime
+import numpy as np
+import argparse
+from torchvision import transforms
+
+# 確保輸出立即刷新
+sys.stdout.reconfigure(encoding='utf-8')
+sys.stderr.reconfigure(encoding='utf-8')
+
+# 添加專案根目錄到 Python 路徑
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_root = os.path.dirname(_script_dir)
+sys.path.insert(0, _root)
+sys.path.insert(0, _script_dir)
+
+from models.dino_fpn_decoder import DINOWithFPNDecoder
+from utils.dataset import get_dataloader
+from utils.metrics import calculate_metrics
+from utils_colab import setup_device, get_default_num_workers, detect_environment
+
+
+def load_list_file(list_file: str, base_data_dir: str = "data"):
+    """
+    從 list 檔案載入資料（每行一個相對路徑，如 skyfinder_10066/images/001.jpg）
+    
+    返回:
+        List[Dict]: 每個 dict 包含 {'camera_id': str, 'image': str, 'mask': str}
+    """
+    split_list = []
+    
+    if not os.path.exists(list_file):
+        raise FileNotFoundError(f"找不到 list 檔案：{list_file}")
+    
+    with open(list_file, 'r', encoding='utf-8') as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            
+            # 解析相對路徑：skyfinder_10066/images/001.jpg
+            parts = line.replace('\\', '/').split('/')
+            
+            if len(parts) < 3:
+                print(f"  警告：無法解析路徑：{line}")
+                continue
+            
+            camera_folder = parts[0]
+            if not camera_folder.startswith('skyfinder_'):
+                print(f"  警告：無效的 camera 資料夾名稱：{camera_folder}")
+                continue
+            
+            camera_id = camera_folder.replace('skyfinder_', '')
+            image_filename = '/'.join(parts[2:])
+            
+            # 找到對應的 mask
+            img_base = os.path.splitext(image_filename)[0]
+            possible_mask_names = [
+                f"{img_base}.png",
+                f"{img_base}.pgm",
+                f"{img_base}.jpg",
+                image_filename,
+            ]
+            
+            mask_filename = None
+            for mask_name in possible_mask_names:
+                mask_path = os.path.join(base_data_dir, camera_folder, "masks", mask_name)
+                if os.path.exists(mask_path):
+                    mask_filename = mask_name
+                    break
+            
+            if mask_filename is None:
+                print(f"  警告：找不到 mask 檔案：{line}")
+                continue
+            
+            split_list.append({
+                'camera_id': camera_id,
+                'image': image_filename,
+                'mask': mask_filename
+            })
+    
+    return split_list
+
+
+class DiceLoss(nn.Module):
+    """Dice Loss（binary，sigmoid 後計算）"""
+    def __init__(self, smooth=1e-6):
+        super(DiceLoss, self).__init__()
+        self.smooth = smooth
+    
+    def forward(self, pred, target):
+        pred_probs = torch.sigmoid(pred)
+        pred_flat = pred_probs.view(-1)
+        target_flat = target.view(-1)
+        intersection = (pred_flat * target_flat).sum()
+        dice = (2.0 * intersection + self.smooth) / (
+            pred_flat.sum() + target_flat.sum() + self.smooth
+        )
+        return 1 - dice
+
+
+class CombinedLoss(nn.Module):
+    """BCE + Dice Loss（權重 1:1）"""
+    def __init__(self, bce_weight=1.0, dice_weight=1.0):
+        super(CombinedLoss, self).__init__()
+        self.bce = nn.BCEWithLogitsLoss()
+        self.dice = DiceLoss()
+        self.bce_weight = bce_weight
+        self.dice_weight = dice_weight
+    
+    def forward(self, pred, target):
+        bce_loss = self.bce(pred, target)
+        dice_loss = self.dice(pred, target)
+        return self.bce_weight * bce_loss + self.dice_weight * dice_loss
+
+
+class NormalizedDataset(torch.utils.data.Dataset):
+    """
+    Wrapper dataset 來處理 DINO 需要的 ImageNet normalization
+    原始 dataset 輸出 [0, 1] 範圍的影像，需要轉換為 ImageNet normalized
+    """
+    def __init__(self, base_dataset):
+        self.base_dataset = base_dataset
+        self.normalize = transforms.Normalize(
+            mean=[0.485, 0.456, 0.406],
+            std=[0.229, 0.224, 0.225]
+        )
+    
+    def __len__(self):
+        return len(self.base_dataset)
+    
+    def __getitem__(self, idx):
+        image, mask = self.base_dataset[idx]
+        # image 已經是 [0, 1] 範圍，需要 normalize
+        image_normalized = self.normalize(image)
+        return image_normalized, mask
+
+
+def train_epoch(model, dataloader, criterion, optimizer, device, use_amp=False):
+    """訓練一個 epoch，返回 loss 和 metrics"""
+    model.train()
+    running_loss = 0.0
+    total_iou = 0.0
+    num_batches = 0
+    
+    scaler = torch.amp.GradScaler('cuda') if use_amp else None
+    
+    for images, masks in tqdm(dataloader, desc='  Train', leave=False):
+        images = images.to(device)
+        masks = masks.to(device)
+        
+        optimizer.zero_grad()
+        
+        if use_amp:
+            with torch.amp.autocast('cuda'):
+                outputs = model(images)
+                loss = criterion(outputs, masks)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
+        else:
+            outputs = model(images)
+            loss = criterion(outputs, masks)
+            loss.backward()
+            optimizer.step()
+        
+        running_loss += loss.item()
+        
+        # 計算 metrics
+        with torch.no_grad():
+            batch_metrics = calculate_metrics(outputs, masks)
+            total_iou += batch_metrics['iou']
+        
+        num_batches += 1
+        
+        # 清理記憶體
+        del images, masks, outputs, loss
+        if device.type == 'cuda':
+            torch.cuda.empty_cache()
+    
+    avg_loss = running_loss / num_batches if num_batches > 0 else 0.0
+    avg_iou = total_iou / num_batches if num_batches > 0 else 0.0
+    return avg_loss, avg_iou
+
+
+def evaluate(model, dataloader, criterion, device, use_amp=False):
+    """評估模型，返回 loss 和 metrics"""
+    model.eval()
+    running_loss = 0.0
+    total_iou = 0.0
+    total_dice = 0.0
+    total_pixel_acc = 0.0
+    run_fp = 0.0
+    run_fn = 0.0
+    run_pos = 0.0
+    run_neg = 0.0
+    num_batches = 0
+    smooth = 1e-6
+    
+    with torch.no_grad():
+        for images, masks in tqdm(dataloader, desc='  Val', leave=False):
+            images = images.to(device)
+            masks = masks.to(device)
+            
+            if use_amp:
+                with torch.amp.autocast('cuda'):
+                    outputs = model(images)
+                    loss = criterion(outputs, masks)
+            else:
+                outputs = model(images)
+                loss = criterion(outputs, masks)
+            
+            running_loss += loss.item()
+            
+            # 計算 metrics
+            batch_metrics = calculate_metrics(outputs, masks)
+            total_iou += batch_metrics['iou']
+            total_dice += batch_metrics['dice']
+            total_pixel_acc += batch_metrics['pixel_acc']
+            
+            # FP/FN
+            pred_b = (torch.sigmoid(outputs) > 0.5).float()
+            gt_b = (masks > 0.5).float()
+            run_fp += ((pred_b == 1) & (gt_b == 0)).sum().item()
+            run_fn += ((pred_b == 0) & (gt_b == 1)).sum().item()
+            run_pos += (gt_b == 1).sum().item()
+            run_neg += (gt_b == 0).sum().item()
+            
+            num_batches += 1
+            
+            # 清理記憶體
+            del images, masks, outputs, loss
+            if device.type == 'cuda':
+                torch.cuda.empty_cache()
+    
+    if num_batches == 0:
+        return 0.0, {'iou': 0.0, 'dice': 0.0, 'pixel_acc': 0.0, 'fp_rate': 0.0, 'fn_rate': 0.0}
+    
+    avg_loss = running_loss / num_batches
+    fp_rate = run_fp / (run_neg + smooth)
+    fn_rate = run_fn / (run_pos + smooth)
+    metrics = {
+        'iou': total_iou / num_batches,
+        'dice': total_dice / num_batches,
+        'pixel_acc': total_pixel_acc / num_batches,
+        'fp_rate': fp_rate,
+        'fn_rate': fn_rate
+    }
+    
+    return avg_loss, metrics
+
+
+def save_checkpoint(model, optimizer, epoch, val_iou, checkpoint_dir, is_best=False):
+    """保存 checkpoint"""
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    
+    checkpoint = {
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'optimizer_state_dict': optimizer.state_dict(),
+        'val_iou': val_iou,
+    }
+    
+    # 保存 latest checkpoint
+    latest_path = os.path.join(checkpoint_dir, 'latest.pth')
+    torch.save(checkpoint, latest_path)
+    
+    # 保存 best checkpoint
+    if is_best:
+        best_path = os.path.join(checkpoint_dir, 'best.pth')
+        torch.save(checkpoint, best_path)
+        print(f"    ✓ 保存 best checkpoint (val IoU: {val_iou:.4f})")
+
+
+def main():
+    parser = argparse.ArgumentParser(description='訓練 DINO-FPN（Colab 專屬版本，參數化）')
+    
+    # 路徑參數
+    parser.add_argument('--data_dir', type=str, default='data',
+                        help='數據根目錄（預設：data）')
+    parser.add_argument('--outputs_dir', type=str, default='outputs',
+                        help='輸出目錄（預設：outputs）')
+    parser.add_argument('--train_list', type=str, default=None,
+                        help='train_list.txt 路徑（預設：{outputs_dir}/train_list.txt）')
+    parser.add_argument('--val_list', type=str, default=None,
+                        help='val_list.txt 路徑（預設：{outputs_dir}/val_list.txt）')
+    
+    # 訓練參數
+    parser.add_argument('--batch_size', type=int, default=2,
+                        help='批次大小（預設：2）')
+    parser.add_argument('--epochs', type=int, default=10,
+                        help='訓練輪數（預設：10）')
+    parser.add_argument('--learning_rate', type=float, default=1e-4,
+                        help='學習率（預設：1e-4）')
+    parser.add_argument('--image_size', type=int, nargs=2, default=[256, 256],
+                        help='影像尺寸（預設：256 256，可指定如 512 512）')
+    parser.add_argument('--device', type=str, default=None,
+                        help='設備（cpu/cuda/auto，預設：自動偵測環境）')
+    parser.add_argument('--num_workers', type=int, default=None,
+                        help='數據載入進程數（預設：本機 0，Colab 2）')
+    
+    args = parser.parse_args()
+    
+    # 環境偵測
+    env = detect_environment()
+    
+    # 設定預設路徑
+    if args.train_list is None:
+        args.train_list = os.path.join(args.outputs_dir, 'train_list.txt')
+    if args.val_list is None:
+        args.val_list = os.path.join(args.outputs_dir, 'val_list.txt')
+    
+    # 設定 device
+    device, use_amp, env = setup_device(args.device, env)
+    
+    # 設定 num_workers
+    if args.num_workers is None:
+        args.num_workers = get_default_num_workers(env)
+    
+    # 訓練參數
+    seed = 42
+    image_size = tuple(args.image_size)
+    
+    print("=" * 60)
+    print("  訓練 DINO → DL：FPN-like Decoder")
+    print("  Colab 專屬版本，參數化")
+    print("=" * 60)
+    print()
+    print(f"環境: {env}")
+    print(f"設備: {device}")
+    print(f"混合精度訓練: {use_amp}")
+    print(f"批次大小: {args.batch_size}")
+    print(f"影像尺寸: {image_size}")
+    print(f"訓練輪數: {args.epochs}")
+    print(f"學習率: {args.learning_rate}")
+    print(f"數據載入進程數: {args.num_workers}")
+    print()
+    
+    # 設定隨機種子
+    torch.manual_seed(seed)
+    np.random.seed(seed)
+    if device.type == 'cuda' and torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+    
+    # 載入 split lists
+    print(f"載入 train list: {args.train_list}...")
+    train_split_list = load_list_file(args.train_list, base_data_dir=args.data_dir)
+    print(f"  共 {len(train_split_list)} 張訓練影像")
+    
+    print(f"載入 val list: {args.val_list}...")
+    val_split_list = load_list_file(args.val_list, base_data_dir=args.data_dir)
+    print(f"  共 {len(val_split_list)} 張驗證影像")
+    print()
+    
+    # 建立 base dataloaders（未 normalize）
+    print("建立 dataloaders...")
+    train_base_dataset = get_dataloader(
+        batch_size=1,  # 先取得 dataset
+        shuffle=False,
+        transform=True,  # 訓練時使用 augmentation
+        image_size=image_size,
+        num_workers=0,
+        split_list=train_split_list,
+        base_data_dir=args.data_dir
+    ).dataset
+    
+    val_base_dataset = get_dataloader(
+        batch_size=1,
+        shuffle=False,
+        transform=False,  # 驗證時不使用 augmentation
+        image_size=image_size,
+        num_workers=0,
+        split_list=val_split_list,
+        base_data_dir=args.data_dir
+    ).dataset
+    
+    # 包裝成 normalized dataset
+    train_dataset = NormalizedDataset(train_base_dataset)
+    val_dataset = NormalizedDataset(val_base_dataset)
+    
+    # 建立 dataloaders
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=args.batch_size,
+        shuffle=True,
+        num_workers=args.num_workers,
+        pin_memory=True if torch.cuda.is_available() else False
+    )
+    
+    val_loader = torch.utils.data.DataLoader(
+        val_dataset,
+        batch_size=args.batch_size,
+        shuffle=False,
+        num_workers=args.num_workers,
+        pin_memory=True if torch.cuda.is_available() else False
+    )
+    
+    print(f"  Train batches: {len(train_loader)}")
+    print(f"  Val batches: {len(val_loader)}")
+    print()
+    
+    # 建立模型
+    print("建立模型...")
+    print("  載入 DINOv2 ViT-B/14...")
+    model = DINOWithFPNDecoder(device=device, target_size=image_size[0])
+    
+    # 確認 DINO 已凍結
+    dino_params = sum(p.numel() for p in model.dino_model.parameters())
+    decoder_params = sum(p.numel() for p in model.decoder.parameters())
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    
+    print(f"  DINO 參數（凍結）: {dino_params:,}")
+    print(f"  Decoder 參數（可訓練）: {decoder_params:,}")
+    print(f"  總可訓練參數: {trainable_params:,}")
+    print()
+    
+    # Loss 和 Optimizer（只優化 decoder）
+    criterion = CombinedLoss(bce_weight=1.0, dice_weight=1.0)
+    optimizer = optim.Adam(model.decoder.parameters(), lr=args.learning_rate)
+    
+    # 建立輸出目錄
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    output_dir = os.path.join(args.outputs_dir, f"train_dino_fpn_{timestamp}")
+    checkpoint_dir = os.path.join(output_dir, "checkpoints")
+    os.makedirs(checkpoint_dir, exist_ok=True)
+    
+    print(f"輸出目錄: {output_dir}")
+    print()
+    
+    # 訓練記錄
+    training_log = []
+    best_val_iou = 0.0
+    
+    # 訓練循環
+    print("開始訓練...")
+    print()
+    
+    for epoch in range(1, args.epochs + 1):
+        print(f"Epoch {epoch}/{args.epochs}")
+        
+        # 訓練
+        train_loss, train_iou = train_epoch(model, train_loader, criterion, optimizer, device, use_amp)
+        
+        # 驗證
+        val_loss, val_metrics = evaluate(model, val_loader, criterion, device, use_amp)
+        val_iou = val_metrics['iou']
+        
+        # 記錄
+        log_entry = {
+            'epoch': epoch,
+            'train_loss': train_loss,
+            'train_iou': train_iou,
+            'val_loss': val_loss,
+            'val_iou': val_iou,
+            'val_dice': val_metrics['dice'],
+            'val_pixel_acc': val_metrics['pixel_acc'],
+            'val_fp_rate': val_metrics['fp_rate'],
+            'val_fn_rate': val_metrics['fn_rate']
+        }
+        training_log.append(log_entry)
+        
+        # 輸出結果
+        print(f"  Train Loss: {train_loss:.4f}, Train IoU: {train_iou:.4f}")
+        print(f"  Val Loss: {val_loss:.4f}, Val IoU: {val_iou:.4f}, Val Dice: {val_metrics['dice']:.4f}")
+        print(f"  Val FP Rate: {val_metrics['fp_rate']:.4f}, Val FN Rate: {val_metrics['fn_rate']:.4f}")
+        
+        # 保存 checkpoint
+        is_best = val_iou > best_val_iou
+        if is_best:
+            best_val_iou = val_iou
+        
+        save_checkpoint(model, optimizer, epoch, val_iou, checkpoint_dir, is_best)
+        
+        print()
+    
+    # 保存訓練記錄
+    log_file = os.path.join(output_dir, "training_log.csv")
+    with open(log_file, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=training_log[0].keys())
+        writer.writeheader()
+        writer.writerows(training_log)
+    
+    print("=" * 60)
+    print("  訓練完成")
+    print("=" * 60)
+    print(f"Best Val IoU: {best_val_iou:.4f}")
+    print(f"輸出目錄: {output_dir}")
+    print(f"Best checkpoint: {os.path.join(checkpoint_dir, 'best.pth')}")
+    print()
+
+
+if __name__ == "__main__":
+    main()
