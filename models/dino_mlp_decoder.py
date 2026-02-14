@@ -83,13 +83,13 @@ class DINOMLPDecoder(nn.Module):
         if dino_features.dim() == 3:
             # (batch, N, D) -> (batch, 37, 37, D)
             batch_size = dino_features.shape[0]
-            dino_features = dino_features.view(batch_size, self.dino_patch_size, self.dino_patch_size, self.dino_feat_dim)
+            dino_features = dino_features.reshape(batch_size, self.dino_patch_size, self.dino_patch_size, self.dino_feat_dim)
         
         # MLP Mixer: (batch, 37, 37, 768) -> (batch, 37, 37, 256)
         batch_size, h, w, d = dino_features.shape
-        dino_features_flat = dino_features.view(batch_size * h * w, d)  # (batch*37*37, 768)
+        dino_features_flat = dino_features.reshape(batch_size * h * w, d)  # (batch*37*37, 768)
         mlp_out = self.mlp(dino_features_flat)  # (batch*37*37, 256)
-        mlp_out = mlp_out.view(batch_size, h, w, 256)  # (batch, 37, 37, 256)
+        mlp_out = mlp_out.reshape(batch_size, h, w, 256)  # (batch, 37, 37, 256)
         
         # 轉換為 (batch, C, H, W) 格式
         mlp_out = mlp_out.permute(0, 3, 1, 2)  # (batch, 256, 37, 37)

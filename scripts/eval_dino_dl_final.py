@@ -31,6 +31,10 @@ from tqdm import tqdm
 from torchvision import transforms
 from PIL import Image
 
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_root = os.path.dirname(_script_dir)
+sys.path.insert(0, _root)
+
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
@@ -379,6 +383,7 @@ def evaluate_one_model(model_type, checkpoint_path, test_list, device, use_amp, 
         dataset = base_dataset
     else:
         dataset = NormalizedDataset(base_dataset)
+        dataset.image_paths = getattr(base_dataset, 'image_paths', None)
     
     dataloader = torch.utils.data.DataLoader(
         dataset,

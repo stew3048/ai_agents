@@ -95,7 +95,7 @@ class DINOFPNDecoder(nn.Module):
         if dino_features.dim() == 3:
             # (batch, N, D) -> (batch, 37, 37, D) -> (batch, D, 37, 37)
             batch_size = dino_features.shape[0]
-            dino_features = dino_features.view(batch_size, self.dino_patch_size, self.dino_patch_size, self.dino_feat_dim)
+            dino_features = dino_features.reshape(batch_size, self.dino_patch_size, self.dino_patch_size, self.dino_feat_dim)
             dino_features = dino_features.permute(0, 3, 1, 2)  # (batch, 768, 37, 37)
         
         # 初始降維: (batch, 768, 37, 37) -> (batch, 256, 37, 37)

@@ -93,17 +93,17 @@ class DINOHybridDecoder(nn.Module):
             # (batch, N, D) -> (batch, N, 256)
             dino_proj = self.dino_proj(dino_features)  # (batch, 1369, 256)
             # Reshape 成空間格式: (batch, 37, 37, 256)
-            dino_proj = dino_proj.view(batch_size, self.dino_patch_size, self.dino_patch_size, 256)
+            dino_proj = dino_proj.reshape(batch_size, self.dino_patch_size, self.dino_patch_size, 256)
             # 轉換為 (batch, 256, 37, 37)
             dino_proj = dino_proj.permute(0, 3, 1, 2)
         else:
             # 如果已經是 (batch, 37, 37, 768) 格式
-            dino_proj = dino_features.view(batch_size, self.dino_patch_size, self.dino_patch_size, self.dino_feat_dim)
+            dino_proj = dino_features.reshape(batch_size, self.dino_patch_size, self.dino_patch_size, self.dino_feat_dim)
             dino_proj = dino_proj.permute(0, 3, 1, 2)  # (batch, 768, 37, 37)
             # 需要先降維
-            dino_proj = dino_proj.view(batch_size, self.dino_feat_dim, -1).permute(0, 2, 1)  # (batch, 1369, 768)
+            dino_proj = dino_proj.reshape(batch_size, self.dino_feat_dim, -1).permute(0, 2, 1)  # (batch, 1369, 768)
             dino_proj = self.dino_proj(dino_proj)  # (batch, 1369, 256)
-            dino_proj = dino_proj.view(batch_size, self.dino_patch_size, self.dino_patch_size, 256)
+            dino_proj = dino_proj.reshape(batch_size, self.dino_patch_size, self.dino_patch_size, 256)
             dino_proj = dino_proj.permute(0, 3, 1, 2)  # (batch, 256, 37, 37)
         
         # 上採樣 DINO features 到 256×256

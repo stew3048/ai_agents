@@ -29,6 +29,10 @@ from collections import defaultdict
 from tqdm import tqdm
 from PIL import Image
 
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+_root = os.path.dirname(_script_dir)
+sys.path.insert(0, _root)
+
 sys.stdout.reconfigure(encoding='utf-8')
 sys.stderr.reconfigure(encoding='utf-8')
 
