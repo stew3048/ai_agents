@@ -56,6 +56,8 @@ except ImportError as e:
 
 def load_clipseg_model(model_id='CIDAS/clipseg-rd64-refined', device='cpu'):
     """載入 CLIPSeg 模型與 processor"""
+    if not CLIPSEG_AVAILABLE:
+        raise ImportError("CLIPSeg 未安裝。請執行: pip install transformers timm")
     processor = CLIPSegProcessor.from_pretrained(model_id)
     model = CLIPSegForImageSegmentation.from_pretrained(model_id)
     model.to(device)

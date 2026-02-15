@@ -1,10 +1,12 @@
 """
 評估指標計算
 用於天空分割任務的評估指標
+與 train_in_domain / eval_unet 同一套公式（IoU, Dice, FP rate, FN rate）
 """
 
 import torch
 import torch.nn.functional as F
+import numpy as np
 
 
 def calculate_iou(pred, target, threshold=0.5):
@@ -112,3 +114,40 @@ def calculate_metrics(pred, target, threshold=0.5):
         'pixel_acc': calculate_pixel_accuracy(pred, target, threshold).item()
     }
     return metrics
+
+
+def compute_metrics_numpy(pred_mask, gt_mask, smooth=1e-6):
+    """
+    Numpy 版：從 pred (H,W) 與 gt (H,W) 0~1 計算 iou, dice, fp_rate, fn_rate。
+    與 train_in_domain / eval_unet 同一套定義，供 CLIPSeg、Grounding 等 mask 輸出方法使用。
+    
+    參數:
+        pred_mask: 預測 mask，numpy (H,W)，0~1 或 0~255
+        gt_mask: GT mask，numpy (H,W)，0~1 或 0~255
+        smooth: 平滑項
+    
+    返回:
+        (iou, dice, fp_rate, fn_rate) 四個 float
+    """
+    pred_b = (np.asarray(pred_mask, dtype=np.float32).squeeze() > 0.5).astype(np.float32)
+    gt_b = (np.asarray(gt_mask, dtype=np.float32).squeeze() > 0.5).astype(np.float32)
+    if pred_b.shape != gt_b.shape:
+        from PIL import Image
+        pred_b = np.array(
+            Image.fromarray((pred_b * 255).astype(np.uint8)).resize(
+                (gt_b.shape[1], gt_b.shape[0]), Image.NEAREST
+            ), dtype=np.float32
+        ) / 255.0
+        pred_b = (pred_b > 0.5).astype(np.float32)
+    tp = ((pred_b == 1) & (gt_b == 1)).sum()
+    fp = ((pred_b == 1) & (gt_b == 0)).sum()
+    fn = ((pred_b == 0) & (gt_b == 1)).sum()
+    tn = ((pred_b == 0) & (gt_b == 0)).sum()
+    union = tp + fp + fn
+    iou = float((tp / (union + smooth)) if union > 0 else 1.0)
+    dice = float((2 * tp + smooth) / (2 * tp + fp + fn + smooth)) if (tp + fp + fn) > 0 else 1.0
+    total_neg = tn + fp
+    total_pos = tp + fn
+    fp_rate = float(fp / (total_neg + smooth))
+    fn_rate = float(fn / (total_pos + smooth)) if total_pos > 0 else 0.0
+    return iou, dice, fp_rate, fn_rate

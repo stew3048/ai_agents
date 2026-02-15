@@ -269,9 +269,21 @@ def load_grounding_dino_model(model_id='IDEA-Research/grounding-dino-tiny', devi
     返回:
         processor, model
     """
+    # 延遲 import：若模組載入時未裝，這裡再試一次並寫入 globals，避免 UnboundLocalError
+    global GROUNDING_DINO_AVAILABLE
     if not GROUNDING_DINO_AVAILABLE:
-        raise ImportError("Grounding DINO 未安裝。請執行: pip install transformers")
-    
+        try:
+            from transformers import AutoProcessor, GroundingDinoForObjectDetection
+            globals()['AutoProcessor'] = AutoProcessor
+            globals()['GroundingDinoForObjectDetection'] = GroundingDinoForObjectDetection
+            GROUNDING_DINO_AVAILABLE = True
+        except ImportError as e:
+            raise ImportError(
+                "Grounding DINO 依賴 transformers。請執行: pip install transformers\n"
+                "若已安裝，請確認 Python 環境與版本一致，或升級: pip install -U transformers"
+            ) from e
+    AutoProcessor = globals()['AutoProcessor']
+    GroundingDinoForObjectDetection = globals()['GroundingDinoForObjectDetection']
     processor = AutoProcessor.from_pretrained(model_id)
     model = GroundingDinoForObjectDetection.from_pretrained(model_id)
     model.to(device)
