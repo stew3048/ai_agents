@@ -1,0 +1,43 @@
+三個模型在自訂 5 張圖上的平均指標（統一定義）
+指標定義（對三個模型都一樣）：
+
+IoU: ( \text{IoU} = \frac{TP}{TP + FP + FN} )
+Precision: ( \frac{TP}{TP + FP} )
+Recall: ( \frac{TP}{TP + FN} )
+FP rate: ( \frac{FP}{TN + FP} )
+FN rate: ( \frac{FN}{TP + FN} = 1 - \text{Recall} )
+
+1. Grounding DINO + SAM（IDEA-Research/grounding-dino-tiny + facebook/sam2-hiera-small）
+IoU_mean: 0.5954
+Precision_mean: 0.6001
+Recall_mean: 0.7931
+FP_rate_mean: 0.1094
+FN_rate_mean: 0.2069
+Overlay 位置：output/grounding_dino_sam_overlays_auto/
+
+
+2. CLIPSeg（CIDAS/clipseg-rd64-refined，改良版設定）
+（來自 eval_custom_data_three_methods.py，只跑 CLIPSeg）
+
+IoU_mean: 0.7252
+Precision_mean: 0.8174
+Recall_mean: 0.8824
+FP_rate_mean: 約 0.04（由 script 內部統計，FP 低）
+FN_rate_mean: 約 0.12
+Overlay 位置：output/clipseg_overlays/
+註：精確 FP/FN 數值已寫入 output/custom_data_metrics.csv 中對應 CLIPSeg 的 fp_rate_mean、fn_rate_mean 欄位。
+
+
+3. DINO + dino_segmentation（in-domain segmentation 模型）
+（使用 outputs/train_dino_segmentation_20260214_101339/checkpoints/best.pth，腳本 eval_custom_dino_segmentation.py）
+
+IoU_mean: 0.8746
+Precision_mean: 0.9766
+Recall_mean: 0.8965
+FP_rate_mean: 0.0073
+FN_rate_mean: 0.1035
+Overlay 位置：output/dino_segmentation_overlays/
+
+
+整體來看，在你這 5 張 real data 上：
+DINO segmentation > CLIPSeg > Grounding DINO+SAM，不論是 IoU、precision 還是 FP/FN rate 都是這個排序。
