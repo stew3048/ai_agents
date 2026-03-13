@@ -1,0 +1,7 @@
+# 禁止對 ai_agents repo 進行操作
+
+**使用者要求**：不要再動 **ai_agents** 這個 repo。
+
+- **不要**對 ai_agents（即 ai_projects 的 origin remote）執行 **git push**、**git commit**，或任何會改動該遠端倉庫的操作。
+- 若需版本控制，僅限本地修改；**不得** push 到 ai_agents。
+- 日誌、筆記等仍可寫在 **notes/** 下（本機檔案），但不要因此去 commit/push 到 ai_agents。

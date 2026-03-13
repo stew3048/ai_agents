@@ -1,0 +1,21 @@
+# MNIST 評估產出（handwriting-recognition-project）
+
+當使用者要求用 **test data 評估 MNIST 模型**（或指定某個 mnist_cnn / mnist_mlp run）時：
+
+1. **必須產出 embedding_tsne.png**  
+   執行 `evaluate_mnist.py` 時**不得**使用 `--no_tsne`，除非使用者明確說「跳過 t-SNE」。  
+   產出須包含：pred_vs_gt_grid.png、top10_worst_cases.png、**embedding_pca.png**、**embedding_tsne.png**、eval_results.txt。
+
+2. **必須產出 top10 最差樣本分析**  
+   評估腳本會自動寫入 **worst10_analysis.md**（表格：Rank / GT / Pred / Confidence；混淆對統計；可能原因摘要）。若沒有，需補上分析。
+
+3. **所有產出放在該 run 的資料夾**  
+   例如：`outputs/runs/20260208_155516_mnist_cnn/`。
+
+4. **主動寫入當日日誌（固定放在 notes/）**  
+   完成評估或做完 CNN vs MLP（或類似）整體指標比較後，**不需使用者提醒**，應主動將結果寫入**手寫辨識專案**的 **notes/**（`handwriting-recognition-project/notes/YYYY-MM-DD-*.md`），**不要**寫進 ai_projects 的 notes。  
+   日誌內容須含：各 run 的 test 結果（loss、accuracy、checkpoint）、兩者整體正確率／對照表、總結句（若有則一併寫入）。
+
+**日誌一律放在 notes/**：手寫辨識相關日誌用 `handwriting-recognition-project/notes/`，本專案（天空分割）用 `ai_projects/notes/`。
+
+參考：handwriting-recognition-project 的 `notes/RULES.md`。

@@ -1,0 +1,112 @@
+# Sky Segmentation Side Project — Method Analysis & Wrap-up
+
+## 一句話目標（Side Project 定義）
+
+本 side project 的目標，是理解並比較不同 vision 方法（CNN / ViT / VLM / SAM）在 sky segmentation 任務中的角色分工，特別是在 no-sky、夜晚、遮擋等困難情境下，分析哪些方法適合「先做語意判斷」，哪些方法適合「穩定大規模切割」，而非單純追求單一模型的最佳分數。
+
+---
+
+## 專案背景與核心問題
+
+Sky segmentation 的挑戰不只是邊界是否切得精準，而是：
+
+- 圖中是否真的存在天空（no-sky 問題）
+- 哪一塊才是語意上正確的天空
+- 在夜晚、反光、遮擋等情境下，模型是否會 hallucinate
+
+若未先釐清「在辨識什麼」，直接做 segmentation，結果往往看似合理但語意錯誤。
+
+---
+
+## 方法心智模型對照
+
+| 方法 | 在解什麼問題 | 世界觀 |
+|---|---|---|
+| CNN / DL Segmentation | 這塊像不像天空 | 外觀 / pattern |
+| Vision Transformer (ViT) | Patch 與 patch 的全局關係 | Context / 關係 |
+| Vision-Language Model (VLM) | 哪裡在語意上是 sky | 語意對齊 |
+| Segment Anything Model (SAM) | 把指定的東西切乾淨 | 結構 / 連通 |
+
+這些方法不是互相取代，而是在不同層級解決不同問題。
+
+---
+
+## 技術理解重點
+
+### ViT（Vision Transformer）
+- 將影像切成 patch 當作 token
+- 使用 Transformer self-attention 建立全局上下文
+- class token 聚合對分類最重要的影像區域
+- 能理解「天空」這類需要全局關係的概念，而非僅依賴局部外觀
+
+### VLM（Vision-Language Model）
+- 使用 ViT 將影像轉成 embedding
+- 使用 text encoder 將文字（如 "sky"）轉成 embedding
+- 透過 image–text contrastive loss 對齊語意空間
+- attention map 為降低 loss 而自然浮現，代表對該語意最有貢獻的影像區域
+- 可用 attention 產生 point / box prompt
+
+### SAM（Segment Anything Model）
+- 不學特定類別（如 sky）
+- 透過 prompt（點 / 框）指定目標
+- 在 embedding 空間中切出連通區域
+- zero-shot、保守、不易 hallucinate，但需要 prompt 引導
+
+---
+
+## 情境導向的實證觀察
+
+| 情境 | 較適合方法 | 原因 |
+|---|---|---|
+| no-sky | VLM / SAM | 語意存在性判斷、低 FP |
+| 夜晚 / 反光 | SAM | 保守、不 hallucinate |
+| 白天天空 | DL Segmentation | 外觀一致、recall 高 |
+| 遮擋天空 | SAM（有 prompt） | 可跨遮擋切連續區 |
+| 大量自動化 | DL Segmentation | 不需 prompt、穩定推論 |
+
+補充觀察：
+- no-sky 情境下，IoU 並非合適指標，FP rate 更具意義
+- DL segmentation 在外觀相似情境容易產生 FP
+- SAM 在語意不確定時偏保守，屬於合理行為
+
+---
+
+## 系統層級的結論與策略
+
+SAM / VLM 與 DL segmentation 並非對立，而是分工關係：
+
+- **VLM / SAM**
+  - 語意確認
+  - failure analysis
+  - 遮擋情境處理
+  - pseudo-label 產生
+
+- **DL Segmentation**
+  - 將「天空的定義」固化成穩定函數
+  - 適合大規模、自動化、長期部署
+
+**整體策略：**
+先用 VLM / SAM 確認「在切對的東西」，再用 DL segmentation 將其變成穩定、可擴展的系統。
+
+---
+
+## Bottom Line
+
+> **VLM 解決「是什麼」  
+> SAM 解決「切哪個」  
+> DL 解決「怎麼穩定地一直切」**
+
+---
+
+## 履歷用摘要（備用）
+
+**Sky Segmentation Method Analysis (Side Project)**  
+Conducted a scenario-driven comparison of CNN-based segmentation, Vision Transformers, Vision-Language Models, and Segment Anything Models for sky segmentation.  
+Analyzed failure modes under no-sky, low-light, reflection, and occlusion scenarios, and proposed a system-level strategy that combines semantic validation (VLM/SAM) with scalable DL segmentation.
+
+---
+
+## 收尾說明
+
+本 side project 已完成方法理解、實證分析與系統層級總結，目標已達成。  
+後續若產品化，將以 VLM/SAM 產生 pseudo-label，再訓練 DL segmentation 作為主系統；本專案於此階段正式收斂。
