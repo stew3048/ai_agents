@@ -9,7 +9,13 @@ CLIPSeg,10870,data\image\10870_040.jpg,data\mask\10870_mask.png,0.641612,0.71316
 CLIPSeg,3888,data\image\3888_1480.jpg,data\mask\3888_mask.png,0.896535,0.932426,0.958833,0.020528,0.041167,output\clipseg_overlays\3888_3888_1480_clipseg_overlay.png
 CLIPSeg,4795,data\image\4795_017.jpg,data\mask\4795_mask.png,0.428595,0.443446,0.927526,0.052834,0.072474,output\clipseg_overlays\4795_4795_017_clipseg_overlay.png
 CLIPSeg,9483,data\image\9483_017.jpg,data\mask\9483_mask.png,0.832315,0.997877,0.833792,0.001379,0.166208,output\clipseg_overlays\9483_9483_017_clipseg_overlay.png
+DINO-segmentation,10066,data\image\10066_046.jpg,data\mask\10066_mask.png,0.604067,0.999480,0.604257,0.000311,0.395743,output\dino_segmentation_overlays\10066_10066_046_dino_segmentation_overlay.png
+DINO-segmentation,10870,data\image\10870_040.jpg,data\mask\10870_mask.png,0.938697,0.972753,0.964045,0.009795,0.035955,output\dino_segmentation_overlays\10870_10870_040_dino_segmentation_overlay.png
+DINO-segmentation,3888,data\image\3888_1480.jpg,data\mask\3888_mask.png,0.923517,0.946566,0.974310,0.016111,0.025690,output\dino_segmentation_overlays\3888_3888_1480_dino_segmentation_overlay.png
+DINO-segmentation,4795,data\image\4795_017.jpg,data\mask\4795_mask.png,0.931239,0.975979,0.953084,0.001104,0.046916,output\dino_segmentation_overlays\4795_4795_017_dino_segmentation_overlay.png
+DINO-segmentation,9483,data\image\9483_017.jpg,data\mask\9483_mask.png,0.975398,0.988378,0.986715,0.009155,0.013285,output\dino_segmentation_overlays\9483_9483_017_dino_segmentation_overlay.png
 
 method,iou_mean,precision_mean,recall_mean,fp_rate_mean,fn_rate_mean
 GroundingDINO+SAM,0.595353,0.600051,0.793057,0.109431,0.206943
 CLIPSeg,0.725185,0.817370,0.882367,0.039985,0.117633
+DINO-segmentation,0.874584,0.976631,0.896482,0.007295,0.103518

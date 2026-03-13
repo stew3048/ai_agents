@@ -41,3 +41,5 @@ Overlay 位置：output/dino_segmentation_overlays/
 
 整體來看，在你這 5 張 real data 上：
 DINO segmentation > CLIPSeg > Grounding DINO+SAM，不論是 IoU、precision 還是 FP/FN rate 都是這個排序。
+
+顏色約定一樣：TP=綠色、FP=紅色、FN=藍色。
