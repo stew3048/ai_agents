@@ -1,0 +1,165 @@
+import os, sys
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+notes_path = os.path.join(_root, "notes", "2026-03-18-CLIPSeg融合實驗與模型架構面試準備.md")
+
+content = """# 2026-03-18 CLIPSeg 融合實驗總結與模型架構面試準備
+
+---
+
+## 一、DINOv2+CLIPSeg 新模型評估（5 張自訂影像）
+
+### 評估設定
+- 影像來源：`data/image/`（5 張）；Mask：`data/mask/`
+- 新模型 checkpoint：`outputs/train_dino_clipseg_20260313_184550/checkpoints/best.pth`
+- 評估腳本：`scripts/eval_dino_clipseg_custom.py`
+- Overlay 輸出：`output/dino_clipseg/`
+
+### 結果（新模型 DINOv2+CLIPSeg）
+
+| 影像 | IoU | Precision | Recall | FP rate | FN rate |
+|---|---|---|---|---|---|
+| 10066_046（濃霧） | 0.5608 | 0.9492 | 0.5781 | 0.0306 | 0.4219 |
+| 10870_040（夜間建築物） | 0.8283 | 0.8974 | 0.9149 | 0.0376 | 0.0851 |
+| 3888_1480（天海一線） | 0.8779 | 0.8847 | 0.9914 | 0.0382 | 0.0086 |
+| 4795_017（夜間強遮擋） | 0.4778 | 0.4778 | 1.0000 | 0.0496 | 0.0000 |
+| 9483_017（日間建築物） | 0.9463 | 0.9496 | 0.9964 | 0.0411 | 0.0036 |
+| **平均** | **0.7382** | **0.8317** | **0.8962** | 0.0394 | 0.1038 |
+
+---
+
+## 二、與 DINOv2+CNN 對比（取自 custom_data_metrics.csv）
+
+| 場景 | DINOv2+CNN | DINOv2+CLIPSeg | 差異 |
+|---|---|---|---|
+| 濃霧 10066_046 | 0.6041 | 0.5608 | ▼ -0.043 |
+| 夜間建築物 10870_040 | 0.9387 | 0.8283 | ▼ -0.110 |
+| 天海一線 3888_1480 | 0.9235 | 0.8779 | ▼ -0.046 |
+| 夜間強遮擋 4795_017 | **0.9312** | 0.4778 | ▼ **-0.453** |
+| 日間建築物 9483_017 | 0.9754 | 0.9463 | ▼ -0.029 |
+| **平均** | **0.8746** | 0.7382 | ▼ **-0.136** |
+
+**結論：DINOv2+CLIPSeg 全面退步，最慘是夜間強遮擋（-0.453）。**
+
+---
+
+## 三、機率圖分析（Probability Map）
+
+### 做法
+腳本：`scripts/visualize_prob_map.py`
+輸出：`output/prob_maps/10066_046_prob_comparison.png`
+
+- 跳過二值化，保留 sigmoid 輸出的浮點機率值（0~1）
+- 用 JET colormap 著色：藍（低信心） → 綠/黃 → 紅（高信心）
+
+### 機率圖的產生方式
+```
+pixel 的天空機率 = σ(logit) = 1 / (1 + e^(-logit))
+```
+不做 `prob > 0.5` 的二值化，直接把浮點數用色彩呈現，可以看出哪些區域模型「猶豫」（黃色 ≈ 0.5）。
+
+### Entropy（信心指標）
+```
+H(p) = -p·log(p) - (1-p)·log(1-p)
+```
+- p=0 或 p=1 → H=0（完全確定）
+- p=0.5 → H=0.693（最大，完全不確定）
+
+### 濃霧場景統計結果
+
+| 模型 | mean entropy | 說明 |
+|---|---|---|
+| CLIPSeg | **0.486** | 幾乎是均勻雜訊，語義訊號極弱 |
+| DINOv2+CNN | 0.040 | 非常確定，保守但精準 |
+| DINOv2+CLIPSeg | 0.050 | 確定，但仍大量漏判 |
+
+**關鍵洞察：CLIPSeg 在濃霧中的 entropy 接近最大值，代表它的輸出是雜訊而非訊號。把雜訊 concatenate 進 decoder，只會干擾模型。**
+
+---
+
+## 四、Post-processing Ensemble 策略實驗
+
+腳本：`scripts/test_fog_ensemble.py`（單張濃霧）、`scripts/test_mask_expansion_all5.py`（全 5 張）
+
+### 單張濃霧（10066_046）各策略 IoU
+
+| 策略 | IoU | 說明 |
+|---|---|---|
+| A. DINOv2 baseline (thr=0.5) | 0.5016 | 基準 |
+| B. max(DINO, CLIPSeg×0.8) | 0.5679 | ▲ +0.066，有效但有限 |
+| C. 0.7×DINO + 0.3×CLIPSeg | 0.5020 | 幾乎無效 |
+| D. DINOv2 lower threshold (0.30) | 0.5135 | 微幅改善 |
+| **E. Mask Expansion (dil=15px, clip>0.35)** | **0.6323** | ▲ **+0.131，最佳** |
+
+### Mask Expansion（方法 E）說明
+1. 取 DINOv2 二值 mask 為基底
+2. 對 mask 邊界向外膨脹 15px（形態學 dilation）→ 製造不確定帶
+3. 不確定帶內，CLIPSeg > 0.35 的 pixel 補入最終 mask
+
+CLIPSeg 只在「DINOv2 不確定的邊界附近」發言，不影響 DINOv2 已確定的區域。
+
+### 全 5 張測試結果（方法 E vs. Baseline）
+
+| 場景 | Baseline IoU | Expansion IoU | 差異 |
+|---|---|---|---|
+| 濃霧 | 0.5016 | **0.6323** | ▲ **+0.131** |
+| 夜間建築物 | 0.7385 | 0.7722 | ▲ +0.034 |
+| 天海一線 | 0.8400 | 0.8264 | ▼ -0.014 |
+| 夜間強遮擋 | **0.4428** | 0.3785 | ▼ **-0.064** |
+| 日間建築物 | 0.9284 | 0.9418 | ▲ +0.013 |
+
+**夜間強遮擋退步原因：** 碎片狀天空被遮擋物切割，dilation 膨脹後覆蓋到相鄰遮擋物，CLIPSeg 對夜間暗色區域同樣輸出 > 0.35，造成 FP 暴增（Recall=1.0 但 Precision=0.379）。
+
+### 結論
+Mask Expansion 在濃霧有效，但夜間強遮擋退步，**無法找到跨場景通用的參數設定**。最佳模型仍為 DINOv2+CNN。
+
+---
+
+## 五、模型架構釐清
+
+### 三個模型的 backbone 都是 Transformer
+
+| 模型 | 圖像 Backbone | 說明 |
+|---|---|---|
+| DINOv2 | ViT（Vision Transformer） | Meta 以自監督學習訓練的 ViT-S/14 |
+| Grounding DINO | Swin Transformer | ViT 的分層變體，搭配 BERT 文字編碼器 |
+| CLIPSeg | ViT-B/16（來自 CLIP） | 加了輕量 Transformer decoder 做分割 |
+
+**自己的模型（DINOv2+CNN）：**
+- Backbone：DINOv2（ViT，Transformer）→ 負責特徵提取
+- Decoder：自設計 CNN → 負責像素級空間重建
+- 設計邏輯：用 Transformer 的全局感知力抽特徵，用 CNN 的空間重建能力輸出精細 mask
+
+### 正確說法
+- ✅「以 ViT 為 backbone 的 DINOv2」
+- ❌「DINOv2 當作 Backbone 的 ViT」（邏輯顛倒）
+
+---
+
+## 六、面試準備重點
+
+### Zero-shot vs. 監督式訓練
+
+- **Grounding DINO + SAM**：完全 zero-shot，不需要任何訓練資料，直接以文字 prompt 推論
+- **CLIPSeg**：完全 zero-shot，同上
+- **DINOv2+CNN**：監督式訓練，用約 3000 張有 GT mask 的天空影像訓練 CNN decoder
+
+用同一批 116 張測試集評估三種方法是**公平且合理**的，因為：
+- 116 張對 DINOv2+CNN 是獨立未見過的測試集
+- 對 zero-shot 模型，任何資料都是「未見過的」
+
+### 為什麼 DINOv2+CNN 優於兩個 zero-shot 模型？
+
+> 「三個模型的 backbone 都是 Transformer，特徵提取能力相當。但 DINOv2+CNN 額外用 3000 張有標注影像做監督式訓練，讓 decoder 學會針對天空分割這個具體任務做像素級的精確判斷。**預訓練決定特徵的上限，監督式訓練決定任務的精準度。**」
+
+### 為什麼從 U-Net 換到 Transformer 預訓練模型？
+
+> 「初期用 U-Net 訓練後發現跨相機的泛化能力不足。Transformer 透過 Self-attention 機制，讓每個 patch 都能關注全圖的上下文，具備更強的特徵表達能力。因此轉向使用以 Transformer 為基礎的預訓練模型，並在 DINOv2 的特徵上接 CNN decoder 做針對性的監督式訓練。」
+
+### 推薦面試開場白
+
+> 「我比較了三種以 Vision Transformer 為基礎的預訓練方法做天空分割：第一是自己訓練的 DINOv2+CNN decoder；第二和第三是 Grounding DINO+SAM 與 CLIPSeg，兩者都是 zero-shot 模型。用同一批 116 張獨立測試集做公平比較，DINOv2+CNN 的平均 IoU 達 0.875，顯著優於兩種 zero-shot 方法。」
+"""
+
+with open(notes_path, 'w', encoding='utf-8') as f:
+    f.write(content)
+print(f"已建立：{notes_path}")
