@@ -1,0 +1,144 @@
+import os, sys
+_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+notes_path = os.path.join(_root, "notes", "2026-03-19-模型訓練機制與Loss函數面試準備.md")
+
+content = """# 2026-03-19 模型訓練機制與 Loss 函數面試準備
+
+---
+
+## 一、如何介紹 DINOv2 + CNN Decoder 模型
+
+### 推薦說法（按資料流順序）
+
+> 「我的模型分兩個部分。第一部分是 DINOv2，它是一個預訓練好的 ViT，負責把輸入影像轉換成高品質的特徵向量。我取它最後四層的輸出，沿 channel 方向 concatenate，得到一個 1536 維的特徵圖。第二部分是我自己設計的 CNN decoder，它接收這個特徵圖，透過幾層卷積逐步上採樣，最終輸出一張和原圖同尺寸的 mask，每個 pixel 代表是天空的機率。」
+
+---
+
+## 二、訓練機制：前向傳播 vs. 反向傳播
+
+### 前向傳播（資料流方向）
+
+```
+原圖（160×160）
+    ↓
+DINOv2（ViT）：影像切 patch → Transformer → 輸出特徵
+    ↓
+取最後 4 層特徵 → concatenate → (1536, h, w) 特徵圖
+    ↓
+CNN Decoder：conv × 3 + upsample → (1, H, W) logit
+    ↓
+Sigmoid → 每個 pixel 的天空機率（0~1）
+    ↓
+與 GT mask 計算 Loss
+```
+
+### 反向傳播（梯度更新方向）
+
+```
+Loss（BCE + Dice）
+    ↓ 計算梯度
+CNN Decoder 各層權重 ← 更新
+    ↓ 梯度繼續往前傳，但...
+DINOv2 權重 ← 凍結（frozen），不更新
+```
+
+### 為什麼凍結 DINOv2？
+
+| 理由 | 說明 |
+|---|---|
+| DINOv2 已用數億張圖預訓練 | 特徵提取能力已很強，3000 張不足以再調整 |
+| 避免 catastrophic forgetting | 更新可能破壞原本學到的通用特徵 |
+| 計算效率 | DINOv2 參數量龐大，凍結後只需訓練 decoder 的少量參數 |
+
+### 程式碼對應
+
+```python
+for param in self.backbone.parameters():
+    param.requires_grad = False   # DINOv2 凍結，不參與梯度更新
+```
+
+---
+
+## 三、Loss 函數詳解
+
+### 組合 Loss
+
+```python
+CombinedLoss = 0.5 × BCE Loss + 0.5 × Dice Loss
+```
+
+---
+
+### BCE Loss（Binary Cross Entropy）
+
+$$L_{BCE} = -\\frac{1}{N}\\sum_{i=1}^{N}\\left[y_i \\cdot \\log(p_i) + (1-y_i) \\cdot \\log(1-p_i)\\right]$$
+
+- $y_i$：GT（0 或 1）
+- $p_i$：模型預測的天空機率
+- $N$：總 pixel 數
+
+**核心特性：逐 pixel 獨立懲罰，越有自信地答錯，懲罰越重。**
+
+| GT | 預測 p | Loss |
+|---|---|---|
+| 1（天空） | 0.95 | 0.05（小，預測正確） |
+| 1（天空） | 0.10 | 2.30（大，預測錯誤） |
+| 0（非天空） | 0.05 | 0.05（小，預測正確） |
+| 0（非天空） | 0.90 | 2.30（大，預測錯誤） |
+
+**BCE 的缺點：**
+當非天空與天空的比例懸殊時，模型可能一直猜多數類（非天空）就能讓 Loss 看似很低，但實際 IoU 可能是 0。**BCE 容易被多數類主導。**
+
+---
+
+### Dice Loss
+
+$$\\text{Dice} = \\frac{2 \\cdot TP}{2 \\cdot TP + FP + FN}$$
+
+$$L_{Dice} = 1 - \\text{Dice}$$
+
+**核心特性：不看個別 pixel，而是看整體 mask 的重疊程度。**
+
+| 情況 | Dice | Dice Loss |
+|---|---|---|
+| 完全重疊（完美預測） | 1.0 | 0.0 |
+| 完全不重疊（完全錯誤） | 0.0 | 1.0 |
+| 部分重疊 | 0~1 | 0~1 |
+
+**Dice 的優勢：**
+即使背景像素很多，只要天空區域沒預測到，Dice Loss 就會很高，強迫模型去找到前景。天生對類別不平衡有抵抗力。
+
+---
+
+### 兩者比較與互補
+
+| | BCE | Dice |
+|---|---|---|
+| 計算單位 | 每個 pixel 獨立 | 整張圖整體 |
+| 對類別不平衡 | 容易被多數類主導 | 天生抗不平衡 |
+| 訓練穩定性 | 穩定，梯度平滑 | 有時梯度震盪 |
+| 優化目標 | 每個 pixel 的機率準確 | mask 整體形狀重疊 |
+
+**合用效果：**
+BCE 負責 pixel 級的精準度，Dice 負責整體 mask 形狀的正確性，兩者互補，同時對抗資料不平衡問題。
+
+---
+
+## 四、面試完整說法整理
+
+### 介紹訓練流程
+
+> 「我凍結 DINOv2 的權重，只訓練後面的 CNN decoder。每張訓練影像進來，DINOv2 固定輸出特徵，CNN decoder 拿到特徵後預測 mask，再用 BCE 加 Dice 的組合 loss 計算誤差，梯度只反向更新 CNN decoder 的權重。這樣既保留了 DINOv2 強大的預訓練特徵，又讓 decoder 針對天空分割任務做針對性的學習。」
+
+### 介紹 Loss 函數
+
+> 「我用了 BCE 和 Dice Loss 各佔 50% 的組合。BCE 是逐 pixel 獨立懲罰，預測越有自信卻答錯，懲罰越重——但它的缺點是當天空和非天空比例懸殊時，模型可能一直猜多數類，Loss 看似很低但 IoU 可能是 0，被多數類主導了。所以加入 Dice Loss 來補足，它不看個別 pixel，而是看預測 mask 和 GT mask 的整體重疊程度。兩個合用，同時考量 pixel 級的精準度以及整體 mask 形狀的正確性，也能有效對抗資料不平衡的問題。」
+
+### 可能追問：為什麼 50/50？
+
+> 「50/50 是常見的預設起點。若天空面積普遍偏小，可以調高 Dice 的比重；若訓練不穩定，可以調高 BCE。這次我沒有做消融實驗（ablation study）去驗證最佳比例，這是未來可以優化的方向。」
+"""
+
+with open(notes_path, 'w', encoding='utf-8') as f:
+    f.write(content)
+print(f"已建立：{notes_path}")
