@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天空分割三模型比較分析</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif; background:#f4f6f8; color:#333; }
+  header { background:linear-gradient(135deg,#1a1a2e,#16213e); color:white; padding:32px 40px; }
+  header h1 { font-size:2em; margin-bottom:6px; }
+  header p  { color:#aab; font-size:0.95em; }
+  main { max-width:1600px; margin:0 auto; padding:24px 32px; }
+
+  .scenario { background:white; border-radius:12px; margin-bottom:36px;
+               box-shadow:0 2px 12px rgba(0,0,0,0.08); overflow:hidden; }
+  .scenario h2 { padding:18px 24px; background:#fafafa; border-bottom:1px solid #e8e8e8;
+                  font-size:1.2em; display:flex; align-items:center; gap:12px; }
+  .cam-badge { background:#e8eaf6; color:#3949ab; border-radius:6px;
+                padding:3px 10px; font-size:0.78em; font-weight:normal; font-family:monospace; }
+
+  .image-grid { display:grid; grid-template-columns: repeat(4, 1fr);
+                 gap:0; }
+  .orig-card, .method-card { padding:16px; border-right:1px solid #f0f0f0; }
+  .method-card:last-child, .orig-card { border-right:none; }
+  .orig-card { background:#fafafa; }
+
+  .method-title { font-size:0.9em; font-weight:600; margin-bottom:10px; color:#333; }
+  .img-box { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:8px;
+              border:1px solid #e0e0e0; display:block; }
+
+  .metrics-row { display:flex; flex-wrap:wrap; gap:6px; margin-top:10px; font-size:0.78em; color:#555; }
+  .metrics-row span { background:#f5f5f5; border-radius:4px; padding:3px 7px; }
+
+  .comment { margin-top:10px; font-size:0.82em; color:#666; line-height:1.5;
+              background:#f9f9f9; border-radius:6px; padding:8px 10px; }
+
+  /* Summary table */
+  .summary-section { background:white; border-radius:12px; margin-top:16px;
+                      box-shadow:0 2px 12px rgba(0,0,0,0.08); overflow:hidden; }
+  .summary-section h2 { padding:18px 24px; background:#fafafa;
+                         border-bottom:1px solid #e8e8e8; font-size:1.2em; }
+  .summary-section .note { padding:14px 24px; font-size:0.88em; color:#555; line-height:1.6; }
+  table { width:100%; border-collapse:collapse; font-size:0.9em; }
+  th { background:#37474f; color:white; padding:12px 16px; text-align:center; }
+  td { padding:12px 16px; border-bottom:1px solid #f0f0f0; text-align:center; }
+  tr:hover td { background:#f9f9f9; }
+  th:first-child, td:first-child { text-align:left; }
+  .verdict { padding:16px 24px 24px; font-size:0.9em; line-height:1.7; }
+  .verdict strong { color:#1a237e; }
+
+  /* Radar section */
+  .radar-section { }
+  .radar-body { display:flex; gap:32px; padding:24px; align-items:flex-start; }
+  .radar-img-wrap { flex:0 0 480px; }
+  .radar-img { width:100%; border-radius:10px; border:1px solid #e0e0e0; }
+  .radar-text { flex:1; display:flex; flex-direction:column; gap:20px; }
+  .radar-item { background:#f9f9f9; border-radius:8px; padding:16px 18px; }
+  .radar-method-title { font-size:1.05em; font-weight:700; margin-bottom:8px; }
+  .radar-item p { font-size:0.9em; color:#444; line-height:1.7; }
+
+  @media (max-width:900px) {
+    .image-grid { grid-template-columns: 1fr 1fr; }
+    .radar-body { flex-direction:column; }
+    .radar-img-wrap { flex:none; width:100%; }
+  }
+  @media (max-width:600px) {
+    .image-grid { grid-template-columns: 1fr; }
+  }
+
+/* ===== PDF（A4 直向）===== */
+@page {
+  size: A4 portrait;
+  margin: 8mm 8mm;
+}
+@media print {
+  body { background: white !important; font-size: 12.5px; }
+  main { max-width: 100% !important; padding: 0 !important; }
+
+  /* ── Header：單行極簡，緊貼第一個場景 ── */
+  header {
+    display: flex !important;
+    align-items: center !important;
+    height: 34px !important;
+    padding: 0 14px !important;
+    margin-bottom: 20px !important;
+    page-break-after: avoid !important;
+    border-radius: 0 !important;
+  }
+  header h1 { font-size: 1.3em !important; margin: 0 !important; white-space: nowrap; }
+  header p  { display: none !important; }
+
+  /* ── 換頁點 ── */
+  .pdf-pagebreak {
+    page-break-before: always !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* ── Scenario ── */
+  .scenario {
+    page-break-before: avoid !important;
+    page-break-inside: avoid !important;
+    margin-bottom: 52px !important;
+  }
+  /* 日間建築物（P3 最後一個 scenario）margin-bottom 歸零，由 RADAR_GAP 控制 */
+  .pre-radar {
+    margin-bottom: 0 !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
+  }
+  .scenario h2 {
+    padding: 7px 13px !important;
+    font-size: 0.94em !important;
+    background: #fafafa !important;
+  }
+
+  /* ── 四宮格 ── */
+  .image-grid {
+    display: grid !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 0 !important;
+  }
+  .orig-card, .method-card {
+    padding: 7px 8px !important;
+    border-right: 1px solid #eee !important;
+    border-bottom: 1px solid #eee !important;
+  }
+  .img-box {
+    width: 100% !important;
+    height: 115px !important;
+    object-fit: contain !important;
+    background: #f5f5f5 !important;
+    border-radius: 4px !important;
+    display: block !important;
+  }
+  .method-title  { font-size: 0.82em !important; margin-bottom: 4px !important; }
+  .metrics-row   { font-size: 0.70em !important; gap: 3px !important; margin-top: 4px !important; flex-wrap: wrap !important; display: flex !important; }
+  .metrics-row span { padding: 2px 4px !important; }
+  .comment       { font-size: 0.72em !important; padding: 3px 5px !important; margin-top: 3px !important; line-height: 1.32 !important; }
+
+  /* ── 雷達圖：class="summary-section radar-section"
+       用雙類選擇器（更高優先度）確保 avoid 蓋過 always ── */
+  .summary-section.radar-section {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+    margin-top: 18px !important;
+    margin-bottom: 0 !important;
+  }
+  .summary-section.radar-section h2 { padding: 7px 13px !important; font-size: 0.94em !important; }
+  .radar-body {
+    display: flex !important;
+    flex-direction: row !important;
+    padding: 10px 12px !important;
+    gap: 14px !important;
+    align-items: flex-start !important;
+  }
+  .radar-img-wrap { flex: 0 0 240px !important; }
+  .radar-img      { width: 100% !important; border-radius: 5px !important; }
+  .radar-text     { flex: 1 !important; display: flex !important; flex-direction: column !important; gap: 7px !important; }
+  .radar-item     { padding: 6px 8px !important; }
+  .radar-item p   { font-size: 0.78em !important; line-height: 1.45 !important; }
+  .radar-method-title { font-size: 0.88em !important; margin-bottom: 3px !important; }
+
+  /* ── 結論：與雷達圖同頁（P3），不換頁 ── */
+  .summary-section:not(.radar-section) {
+    page-break-before: avoid !important;
+    break-before: avoid !important;
+    page-break-inside: avoid !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+    border-radius: 6px !important;
+    margin-top: 18px !important;
+  }
+  .summary-section:not(.radar-section) h2  { padding: 6px 13px !important; font-size: 0.90em !important; }
+  .summary-section .note {
+    padding: 4px 13px !important;
+    font-size: 0.76em !important;
+    line-height: 1.4 !important;
+  }
+  table  { font-size: 0.76em !important; width: 100% !important; }
+  td, th { padding: 4px 7px !important; }
+  .verdict {
+    padding: 6px 13px 8px !important;
+    font-size: 0.78em !important;
+    line-height: 1.42 !important;
+  }
+}
+
+</style>
+</head>
+<body>
+<header>
+  <h1>🌤 天空分割三模型比較分析</h1>
+  <p>評估資料集：test_list（116 張，9 個場景）｜評估日期：2026-03-13｜環境：sky_sam2 conda (Python 3.10)</p>
+</header>
+<main>
+
+
+    <section class="scenario">
+      <h2>📷 濃霧場景
+        <span class="cam-badge">skyfinder_10066 / 046.jpg</span>
+      </h2>
+      <div class="image-grid">
+        <div class="orig-card">
+          <div class="method-title" style="border-left:4px solid #555; padding-left:8px;">原始影像</div>
+          <img src="skyfinder_10066_046_original.jpg" alt="原始影像" class="img-box">
+          <div class="comment">GT mask 色彩說明：🟢 綠=TP（正確天空）　🔴 紅=FP（誤標）　🔵 藍=FN（漏標）</div>
+        </div>
+        
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #e74c3c; padding-left:8px;">
+            GroundingDINO+SAM
+          </div>
+          <img src="skyfinder_10066_046_grounding_dino_sam_overlay.png" alt="GroundingDINO+SAM" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#e67e22'>0.6799</b></span>
+            <span>Prec: <b style='color:#e67e22'>0.6897</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.9795</b></span>
+            <span>FP%: <b style='color:#e74c3c'>0.4353</b></span>
+            <span>FN%: <b style='color:#27ae60'>0.0205</b></span>
+          </div>
+          <div class="comment">💬 高 Recall (0.97) 但 FP 暴增，受霧氣干擾嚴重，將大量非天空區域誤判為天空。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #2980b9; padding-left:8px;">
+            CLIPSeg
+          </div>
+          <img src="skyfinder_10066_046_clipseg_overlay.png" alt="CLIPSeg" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#27ae60'>0.8269</b></span>
+            <span>Prec: <b style='color:#27ae60'>0.9999</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.8269</b></span>
+            <span>FP%: <b style='color:#27ae60'>0.0001</b></span>
+            <span>FN%: <b style='color:#e74c3c'>0.1731</b></span>
+          </div>
+          <div class="comment">💬 表現最佳，語義理解在低對比度下最穩，幾乎沒有誤判 (FP=0.0001) 但偏保守。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #27ae60; padding-left:8px;">
+            DINOv2 + CNN
+          </div>
+          <img src="skyfinder_10066_046_dino_segmentation_overlay.png" alt="DINO-segmentation" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#e67e22'>0.6041</b></span>
+            <span>Prec: <b style='color:#27ae60'>0.9995</b></span>
+            <span>Recall: <b style='color:#e67e22'>0.6043</b></span>
+            <span>FP%: <b style='color:#27ae60'>0.0003</b></span>
+            <span>FN%: <b style='color:#e74c3c'>0.3957</b></span>
+          </div>
+          <div class="comment">💬 極度保守，雖然精準度高，但 FN 接近 40%，在模糊邊界處無法有效識別。</div>
+        </div>
+      </div>
+    </section>
+    <section class="scenario">
+      <h2>📷 夜間建築物
+        <span class="cam-badge">skyfinder_10870 / 096.jpg</span>
+      </h2>
+      <div class="image-grid">
+        <div class="orig-card">
+          <div class="method-title" style="border-left:4px solid #555; padding-left:8px;">原始影像</div>
+          <img src="skyfinder_10870_096_original.jpg" alt="原始影像" class="img-box">
+          <div class="comment">GT mask 色彩說明：🟢 綠=TP（正確天空）　🔴 紅=FP（誤標）　🔵 藍=FN（漏標）</div>
+        </div>
+        
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #e74c3c; padding-left:8px;">
+            GroundingDINO+SAM
+          </div>
+          <img src="skyfinder_10870_096_grounding_dino_sam_overlay.png" alt="GroundingDINO+SAM" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#e74c3c'>0.2646</b></span>
+            <span>Prec: <b style='color:#e74c3c'>0.2646</b></span>
+            <span>Recall: <b style='color:#27ae60'>1.0000</b></span>
+            <span>FP%: <b style='color:#e74c3c'>0.9997</b></span>
+            <span>FN%: <b style='color:#27ae60'>0.0000</b></span>
+          </div>
+          <div class="comment">💬 徹底崩潰，FP 達 0.99，將所有黑暗中的建築物全數誤認為天空。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #2980b9; padding-left:8px;">
+            CLIPSeg
+          </div>
+          <img src="skyfinder_10870_096_clipseg_overlay.png" alt="CLIPSeg" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#e74c3c'>0.4142</b></span>
+            <span>Prec: <b style='color:#e74c3c'>0.5084</b></span>
+            <span>Recall: <b style='color:#e67e22'>0.6908</b></span>
+            <span>FP%: <b style='color:#e74c3c'>0.2403</b></span>
+            <span>FN%: <b style='color:#e74c3c'>0.3092</b></span>
+          </div>
+          <div class="comment">💬 受黑暗嚴重誤導，僅能勉強區分部分區域，精準度與召回率皆不理想。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #27ae60; padding-left:8px;">
+            DINOv2 + CNN
+          </div>
+          <img src="skyfinder_10870_096_dino_segmentation_overlay.png" alt="DINO-segmentation" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#27ae60'>0.9023</b></span>
+            <span>Prec: <b style='color:#27ae60'>0.9701</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.9281</b></span>
+            <span>FP%: <b style='color:#27ae60'>0.0104</b></span>
+            <span>FN%: <b style='color:#e67e22'>0.0719</b></span>
+          </div>
+          <div class="comment">💬 展現強大魯棒性，IoU 達 0.90，能精確過濾複雜光影，識別出真正的天空輪廓。</div>
+        </div>
+      </div>
+    </section>
+    <div class="pdf-pagebreak"></div>
+    <section class="scenario">
+      <h2>📷 天海一線
+        <span class="cam-badge">skyfinder_3888 / 1518.jpg</span>
+      </h2>
+      <div class="image-grid">
+        <div class="orig-card">
+          <div class="method-title" style="border-left:4px solid #555; padding-left:8px;">原始影像</div>
+          <img src="skyfinder_3888_1518_original.jpg" alt="原始影像" class="img-box">
+          <div class="comment">GT mask 色彩說明：🟢 綠=TP（正確天空）　🔴 紅=FP（誤標）　🔵 藍=FN（漏標）</div>
+        </div>
+        
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #e74c3c; padding-left:8px;">
+            GroundingDINO+SAM
+          </div>
+          <img src="skyfinder_3888_1518_grounding_dino_sam_overlay.png" alt="GroundingDINO+SAM" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#e74c3c'>0.5356</b></span>
+            <span>Prec: <b style='color:#e74c3c'>0.5356</b></span>
+            <span>Recall: <b style='color:#27ae60'>1.0000</b></span>
+            <span>FP%: <b style='color:#e74c3c'>0.2561</b></span>
+            <span>FN%: <b style='color:#27ae60'>0.0000</b></span>
+          </div>
+          <div class="comment">💬 無法區分海天，Recall 雖高但將海面全部納入，導致 FP 較高。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #2980b9; padding-left:8px;">
+            CLIPSeg
+          </div>
+          <img src="skyfinder_3888_1518_clipseg_overlay.png" alt="CLIPSeg" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#e74c3c'>0.5511</b></span>
+            <span>Prec: <b style='color:#e74c3c'>0.5766</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.9257</b></span>
+            <span>FP%: <b style='color:#e74c3c'>0.2008</b></span>
+            <span>FN%: <b style='color:#e67e22'>0.0743</b></span>
+          </div>
+          <div class="comment">💬 雖然有語義概念，但對相似色塊的邊界區分力不足，IoU 僅 0.55。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #27ae60; padding-left:8px;">
+            DINOv2 + CNN
+          </div>
+          <img src="skyfinder_3888_1518_dino_segmentation_overlay.png" alt="DINO-segmentation" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#27ae60'>0.9134</b></span>
+            <span>Prec: <b style='color:#27ae60'>0.9358</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.9745</b></span>
+            <span>FP%: <b style='color:#27ae60'>0.0196</b></span>
+            <span>FN%: <b style='color:#27ae60'>0.0255</b></span>
+          </div>
+          <div class="comment">💬 表現優異，能從細微的質地差異切開海天邊界，IoU 突破 0.91。</div>
+        </div>
+      </div>
+    </section>
+    <section class="scenario">
+      <h2>📷 夜間強遮擋
+        <span class="cam-badge">skyfinder_4795 / 653.jpg</span>
+      </h2>
+      <div class="image-grid">
+        <div class="orig-card">
+          <div class="method-title" style="border-left:4px solid #555; padding-left:8px;">原始影像</div>
+          <img src="skyfinder_4795_653_original.jpg" alt="原始影像" class="img-box">
+          <div class="comment">GT mask 色彩說明：🟢 綠=TP（正確天空）　🔴 紅=FP（誤標）　🔵 藍=FN（漏標）</div>
+        </div>
+        
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #e74c3c; padding-left:8px;">
+            GroundingDINO+SAM
+          </div>
+          <img src="skyfinder_4795_653_grounding_dino_sam_overlay.png" alt="GroundingDINO+SAM" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#e74c3c'>0.1275</b></span>
+            <span>Prec: <b style='color:#e74c3c'>0.1276</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.9996</b></span>
+            <span>FP%: <b style='color:#e74c3c'>0.3103</b></span>
+            <span>FN%: <b style='color:#27ae60'>0.0004</b></span>
+          </div>
+          <div class="comment">💬 完全失效，IoU 僅 0.12，在雜亂的遮擋物與夜色中無法界定範圍。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #2980b9; padding-left:8px;">
+            CLIPSeg
+          </div>
+          <img src="skyfinder_4795_653_clipseg_overlay.png" alt="CLIPSeg" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#e67e22'>0.6235</b></span>
+            <span>Prec: <b style='color:#e67e22'>0.6756</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.8899</b></span>
+            <span>FP%: <b style='color:#27ae60'>0.0194</b></span>
+            <span>FN%: <b style='color:#e67e22'>0.1101</b></span>
+          </div>
+          <div class="comment">💬 表現尚可，但對遮擋物的邊緣切割不夠銳利，存在部分誤判。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #27ae60; padding-left:8px;">
+            DINOv2 + CNN
+          </div>
+          <img src="skyfinder_4795_653_dino_segmentation_overlay.png" alt="DINO-segmentation" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#27ae60'>0.9274</b></span>
+            <span>Prec: <b style='color:#27ae60'>0.9819</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.9435</b></span>
+            <span>FP%: <b style='color:#27ae60'>0.0008</b></span>
+            <span>FN%: <b style='color:#e67e22'>0.0565</b></span>
+          </div>
+          <div class="comment">💬 穩定性極高，幾乎不受夜間遮擋干擾，IoU 0.92 為三者之冠。</div>
+        </div>
+      </div>
+    </section>
+    <div class="pdf-pagebreak"></div>
+    <section class="scenario pre-radar">
+      <h2>📷 日間建築物
+        <span class="cam-badge">skyfinder_9112 / 097.jpg</span>
+      </h2>
+      <div class="image-grid">
+        <div class="orig-card">
+          <div class="method-title" style="border-left:4px solid #555; padding-left:8px;">原始影像</div>
+          <img src="skyfinder_9112_097_original.jpg" alt="原始影像" class="img-box">
+          <div class="comment">GT mask 色彩說明：🟢 綠=TP（正確天空）　🔴 紅=FP（誤標）　🔵 藍=FN（漏標）</div>
+        </div>
+        
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #e74c3c; padding-left:8px;">
+            GroundingDINO+SAM
+          </div>
+          <img src="skyfinder_9112_097_grounding_dino_sam_overlay.png" alt="GroundingDINO+SAM" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#27ae60'>0.9624</b></span>
+            <span>Prec: <b style='color:#27ae60'>0.9960</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.9662</b></span>
+            <span>FP%: <b style='color:#27ae60'>0.0030</b></span>
+            <span>FN%: <b style='color:#27ae60'>0.0338</b></span>
+          </div>
+          <div class="comment">💬 表現最亮眼 (IoU 0.96)，在特徵明顯的日間場景，SAM 的強大邊緣分割能力優勢盡顯。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #2980b9; padding-left:8px;">
+            CLIPSeg
+          </div>
+          <img src="skyfinder_9112_097_clipseg_overlay.png" alt="CLIPSeg" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#27ae60'>0.8451</b></span>
+            <span>Prec: <b style='color:#27ae60'>0.9884</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.8536</b></span>
+            <span>FP%: <b style='color:#27ae60'>0.0076</b></span>
+            <span>FN%: <b style='color:#e67e22'>0.1464</b></span>
+          </div>
+          <div class="comment">💬 表現穩定但保守，FN 較高導致 IoU 輸給其他兩者。</div>
+        </div>
+        <div class="method-card">
+          <div class="method-title" style="border-left:4px solid #27ae60; padding-left:8px;">
+            DINOv2 + CNN
+          </div>
+          <img src="skyfinder_9112_097_dino_segmentation_overlay.png" alt="DINO-segmentation" class="img-box">
+          <div class="metrics-row">
+            <span>IoU: <b style='color:#27ae60'>0.9334</b></span>
+            <span>Prec: <b style='color:#27ae60'>0.9520</b></span>
+            <span>Recall: <b style='color:#27ae60'>0.9795</b></span>
+            <span>FP%: <b style='color:#27ae60'>0.0378</b></span>
+            <span>FN%: <b style='color:#27ae60'>0.0205</b></span>
+          </div>
+          <div class="comment">💬 表現優異且平衡，Recall 高達 0.97，但在極細微邊緣處有輕微過度預測。</div>
+        </div>
+      </div>
+    </section>
+
+<section class="summary-section radar-section">
+  <h2>📡 極端天空情境雷達圖</h2>
+  <div class="radar-body">
+    <div class="radar-img-wrap">
+      <img src="Model_Iou-Comparison.png" alt="天空場景雷達圖" class="radar-img">
+    </div>
+    <div class="radar-text">
+      <div class="radar-item">
+        <div class="radar-method-title" style="color:#1f77b4;">🔵 DINOv2 + CNN</div>
+        <p>在所有情境下都保持了極高的 IoU（>0.90，除了濃霧情境）。這證明了它強大的魯棒性（Robustness），無論是面對夜間反光、海天一線還是強遮擋，它都能穩定輸出精確的分割結果。這是一個<strong>全能型且可落地</strong>的模型。</p>
+      </div>
+      <div class="radar-item">
+        <div class="radar-method-title" style="color:#2ca02c;">🟢 Grounding DINO + SAM</div>
+        <p>一個典型的「<strong>好天氣模型</strong>」。它在標準日間場景（IoU 0.96）表現甚至優於 DINO-seg，證明了 SAM 的邊緣分割實力。但在複雜光影和夜間，它的偵測框（Grounding DINO）會完全失效，拖累了 SAM 的發揮。</p>
+      </div>
+      <div class="radar-item">
+        <div class="radar-method-title" style="color:#ff7f0e;">🟠 CLIPSeg</div>
+        <p>表現相對中規中矩。它在濃霧情境下反而表現最好，證明了純語義理解的優勢。但在需要精確辨識邊界（如海天一線）或對抗光影干擾（如夜間反光）時，它的性能上限較低。</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="summary-section">
+  <h2>📊 全資料集平均指標（116 張，含無天空場景）</h2>
+  <div class="note">
+    ✅ 綠底加粗 = 該指標最佳值　｜　IoU / Precision / Recall 越高越好　｜　FP rate / FN rate 越低越好<br>
+    ⚠️ <strong>負樣本測試 (Negative Sample Testing)</strong>：資料集包含 10 張完全無天空影像（GT Mask 全黑），用於測試模型之抗干擾能力。<br>
+    <strong>TNR（負樣本）</strong>：針對資料集中 10 張完全無天空影像（skyfinder_21444）單獨計算，= 1 − FP rate，衡量模型「在沒有天空時，能正確判斷沒有天空」的能力。
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>方法</th><th>樣本數</th>
+        <th>IoU ↑</th><th>Precision ↑</th><th>Recall ↑</th>
+        <th>FP rate ↓</th><th>FN rate ↓</th><th>TNR ↑</th>
+      </tr>
+    </thead>
+    <tbody>
+      
+    <tr>
+      <td style="border-left:4px solid #e74c3c; font-weight:bold; padding-left:8px;">GroundingDINO+SAM</td>
+      <td>106</td>
+      <td>0.7282</td>
+      <td>0.7393</td>
+      <td style='background:#d5f5e3; font-weight:bold;'>0.9030</td>
+      <td>0.1322</td>
+      <td>0.0970</td>
+      <td><span style='color:#e74c3c;font-weight:bold;'>推論失敗</span></td>
+    </tr>
+    <tr>
+      <td style="border-left:4px solid #2980b9; font-weight:bold; padding-left:8px;">CLIPSeg</td>
+      <td>106</td>
+      <td>0.7619</td>
+      <td>0.8510</td>
+      <td>0.8883</td>
+      <td>0.0510</td>
+      <td>0.1117</td>
+      <td><span style='color:#e74c3c;font-weight:bold;'>推論失敗</span></td>
+    </tr>
+    <tr>
+      <td style="border-left:4px solid #27ae60; font-weight:bold; padding-left:8px;">DINOv2 + CNN</td>
+      <td>116</td>
+      <td style='background:#d5f5e3; font-weight:bold;'>0.9204</td>
+      <td style='background:#d5f5e3; font-weight:bold;'>0.8823</td>
+      <td>0.8632</td>
+      <td style='background:#d5f5e3; font-weight:bold;'>0.0105</td>
+      <td style='background:#d5f5e3; font-weight:bold;'>0.0506</td>
+      <td style='background:#d5f5e3; font-weight:bold;'>1.0000</td>
+    </tr>
+    </tbody>
+  </table>
+  <div class="verdict">
+    <strong>結論</strong><br>
+    🥇 <strong>DINOv2 + CNN</strong> 在 IoU（0.9204）、FP rate（0.0105）、FN rate（0.0506）三項均為最佳，整體表現全面領先。優勢來自在本資料集的 in-domain 訓練，能精準辨識天空邊界。<br><br>
+    🥈 <strong>CLIPSeg</strong> IoU（0.7619）居中，Precision 最高（0.8510），且<b>不需要任何訓練資料</b>，是零樣本方法中最穩定的選擇。<br><br>
+    🥉 <strong>GroundingDINO+SAM</strong> Recall 最高（0.9030），幾乎不漏掉天空，但 FP rate 最高（0.1322），大量誤標非天空區域，拖低 IoU（0.7282）。適合對「<b>不漏掉任何天空</b>」有強烈需求、但能容忍誤報的場景。
+  </div>
+</section>
+
+</main>
+</body>
+</html>
